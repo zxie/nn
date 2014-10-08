@@ -12,7 +12,7 @@ N_train = 800000
 N_dev = 200000
 context = 5
 
-# NOTE Getting 16384 words while Bengio et. al. got 16383
+# NOTE Getting 16384 words while Bengio et al. got 16383
 # Also only get 1161192 total words opposed to 1181041 though...
 
 def word_filter(w):

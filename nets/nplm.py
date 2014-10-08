@@ -10,10 +10,10 @@ from log_utils import get_logger
 '''
 Implementation of
     "A Neural Probabilistic Language Model",
-    Bengio et. al., JMLR 2003
+    Bengio et al., JMLR 2003
 Follows some details given in
     "Decoding with Large-Scale Neural LMs Improves Translation",
-    Vaswani et. al., EMNLP 2013
+    Vaswani et al., EMNLP 2013
 '''
 
 logger = get_logger()
@@ -41,7 +41,7 @@ class NPLM(object):
 
     def alloc_params(self):
         rand_init = lambda shape: rand(shape, rand_range)
-        # PARAM Following Vaswani et. al. EMNLP 2013
+        # PARAM Following Vaswani et al. EMNLP 2013
         bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
         # NOTE IndexedParamNode allocates batch of values indexed from C
         self.C = IndexedParamNode('x = C[:, ks]', self.dset, (embed_size, self.vocab_size), init_fn=rand_init)
