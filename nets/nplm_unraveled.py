@@ -1,10 +1,9 @@
-import cPickle as pickle
 import numpy as np
-from ops import tanh, mult, rand, zeros, empty, array
-from dset import BrownCorpus
-from model_utils import ParamStruct
+from ops import tanh, mult, rand, zeros, empty
+from param_utils import ParamStruct, ModelHyperparams
 from log_utils import get_logger
 from opt_utils import create_optimizer
+from net import Net
 
 '''
 Implementation of
@@ -17,32 +16,31 @@ Follows some details given in
 
 logger = get_logger()
 
-# PARAM
-# TODO Wrap up hyperparameters and be able to pass to
-# command line arguments train/test scripts
-embed_size = 30  # size of word embeddings
-context_size = 4  # size of word context (so 4 for 5-gram)
-hidden_size = 50
-# NOTE Each window has a different set of word embeddings to update
-batch_size = 512
-rand_range = [-0.01, 0.01]
-
-# FIXME
-alpha = 0.1
-mom = 0.95
-mom_low = 0.5
-lower_mom_iters = 100
-
 out_file = 'nplm_params.pk'
 
-class NPLM(object):
+class NPLMHyperparams(ModelHyperparams):
 
-    def __init__(self, dset, opt='nag'):
+    def __init__(self, entries):
+        self.defaults = [
+            ('embed_size', 30, 'size of word embeddings'),
+            ('context_size', 4, 'size of word context (so 4 for 5-gram)'),
+            ('hidden_size', 50, 'size of hidden layer'),
+            ('batch_size', 512, 'size of dataset batches')
+        ]
+        super(NPLMHyperparams, self).__init__(entries)
+
+
+class NPLM(Net):
+
+    def __init__(self, dset, hps, opt_hps, opt='nag'):
         self.params = dict()
         self.dset = dset
+        self.hps = hps
         self.vocab_size = len(dset.word_inds)
         logger.debug('Vocab size: %d' % self.vocab_size)
 
+        # PARAM
+        rand_range = [-0.01, 0.01]
         self.rand_init = lambda shape: rand(shape, rand_range)
         # PARAM Following Vaswani et al. EMNLP 2013
         self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
@@ -50,31 +48,21 @@ class NPLM(object):
         self.alloc_params()
 
         # NOTE Make sure to initialize optimizer after alloc_params
-        self.opt = create_optimizer(opt, self, alpha=alpha, mom=mom,
-                mom_low=mom_low, low_mom_iters=100)
+        self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
+                mom=opt_hps.mom, mom_low=opt_hps.mom_low,
+                low_mom_iters=opt_hps.low_mom_iters)
 
     def alloc_params(self):
-        self.params['C'] = self.rand_init((embed_size, self.vocab_size))
-        self.params['H'] = self.rand_init((hidden_size, context_size*embed_size))
-        self.params['d'] = self.bias_init((hidden_size, 1))
-        self.params['U'] = self.rand_init((self.vocab_size, hidden_size))
+        hps = self.hps
+        self.params['C'] = self.rand_init((hps.embed_size, self.vocab_size))
+        self.params['H'] = self.rand_init((hps.hidden_size, hps.context_size*hps.embed_size))
+        self.params['d'] = self.bias_init((hps.hidden_size, 1))
+        self.params['U'] = self.rand_init((self.vocab_size, hps.hidden_size))
         self.params['b'] = self.bias_init((self.vocab_size, 1))
-        self.params['W'] = self.rand_init((self.vocab_size, context_size*embed_size))
+        self.params['W'] = self.rand_init((self.vocab_size, hps.context_size*hps.embed_size))
 
         self.param_keys = sorted(self.params.keys())
         logger.info('Allocated parameters')
-
-    def to_file(self, fout):
-        logger.info('Saving state')
-        # TODO Move this to parent model class
-        self.opt.to_file(fout)
-        pickle.dump([self.params[k].as_numpy_array() for k in self.param_keys], fout)
-
-    def from_file(self, fin):
-        logger.info('Loading state')
-        self.opt.from_file(fin)
-        loaded_params = pickle.load(fin)
-        self.params = dict(zip(self.param_keys, [array(param) for param in loaded_params]))
 
     def run(self):
         data, labels = self.dset.get_batch()
@@ -86,7 +74,7 @@ class NPLM(object):
     def cost_and_grad(self, data, labels, back=True):
         # May not be full batch size if at end of dataset
         bsize = data.shape[1]
-
+        embed_size = self.hps.embed_size
         p = ParamStruct(**self.params)
         x = empty((self.dset.feat_dim * embed_size, bsize))
 
@@ -111,10 +99,9 @@ class NPLM(object):
         cost = cost_array.sum() / bsize
 
         if not back:
-            return cost, None
+            return cost, probs
 
         # Backprop
-        #logger.info('Backprop')
 
         grads = dict()
         for param in self.params:
@@ -125,7 +112,6 @@ class NPLM(object):
         for k in range(bsize):
             dLdy[labels[k], k] -= 1
 
-        # TODO Move normalization for all grads to the end
         grads['b'] = dLdy.sum(axis=1).reshape((-1, 1))
 
         grads['W'] = mult(dLdy, x.T)
@@ -150,8 +136,7 @@ class NPLM(object):
         return cost, grads
 
     # NOTE Try b eps=1e-3, W eps=10.0, U eps=1e-2, d eps=1e-2, H eps=1.0
-    # Turning off large biases (bias_init) also seems to help if get all 0s
-    # NOTE For C grad check by checking the columns of words that appear
+    # NOTE For C grad check columns of words that appear in batch
     # in the current data
     def check_grad(self, data, labels, grads, eps=1.0):
         #for p in self.params:
@@ -173,30 +158,3 @@ class NPLM(object):
                     param[i, j] += eps
                     num_grad[i, j] = (cost_p - cost_m) / (2*eps)
                     print 'ng', num_grad[i, j], 'g', grad[i, j], '/', num_grad[i, j] / grad[i, j], '-', num_grad[i, j] - grad[i, j]
-
-    def update_params(self, data, labels):
-        cost = self.opt.run(data, labels)
-        return cost
-
-
-if __name__ == '__main__':
-    # TODO Claim GPU
-    # TODO Split into train and test
-
-    # Load dataset
-    brown = BrownCorpus(context_size, batch_size)
-
-    # Construct network
-    nplm = NPLM(brown, opt='nag')
-
-    # Run training
-    epochs = 2
-    for k in xrange(0, epochs):
-        brown.restart()
-        it = 0
-        while brown.data_left():
-            cost = nplm.run()
-            logger.info('epoch %d, iter %d, obj=%f' % (k, it, cost))
-            it += 1
-        with open(out_file + '.epoch{0:02}'.format(k+1), 'wb') as fout:
-            nplm.to_file(fout)

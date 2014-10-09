@@ -1,10 +1,27 @@
+from param_utils import HyperparamStruct
+
 '''
-Template class for optimizers
+Template class and hyperparameters for optimizers
 
 Given gradient for the current time step, computes
 the update to apply (subtract) from each parameter
 and applies update
 '''
+
+
+class OptimizerHyperparams(HyperparamStruct):
+
+    def __init__(self, **entries):
+        self.defaults = [
+            ('alpha', 0.01, 'step size'),
+            ('mom', 0.95, 'momentum coefficient (after low_mom_iters)'),
+            ('mom_low', 0.5, 'low momentum prior to low_mom_iters'),
+            ('anneal_factor', 2.0, 'annealing factor after each epoch'),
+            ('low_mom_iters', 100, 'number of iterations to run with low momentum')
+        ]
+
+        super(OptimizerHyperparams, self).__init__(entries)
+
 
 class Optimizer(object):
 

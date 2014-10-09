@@ -10,9 +10,12 @@ from dset_paths import BROWN_CORPUS_RAW_PATH, BROWN_CORPUS_DATA_FILE,\
 # FIXME PARAM
 N_train = 800000
 N_dev = 200000
-context = 5
+context = 4
 
-# NOTE Getting 16384 words while Bengio et al. got 16383
+min_count = 4
+
+# NOTE Getting 12918 different words on first 800000 words
+# (16384 words on whole corpus) while Bengio et al. report 16383
 # Also only get 1161192 total words opposed to 1181041 though...
 
 def word_filter(w):
@@ -25,6 +28,10 @@ def build_vocab(data_files):
     num_words = 0
     num_sents = 0
     counter = collections.defaultdict(int)
+
+    # Only add words in training set to vocab
+    words_added = 0
+    done = False
 
     for f in data_files:
         path = pjoin(BROWN_CORPUS_RAW_PATH, f)
@@ -39,16 +46,20 @@ def build_vocab(data_files):
                 num_words += len(words)
                 num_sents += 1
                 for word in words:
-                    if not word:
+                    if done or not word:
                         continue
                     counter[word] += 1
+                    words_added += 1
+                    if words_added >= N_train:
+                        done = True
+                        break
 
     num_unk = 0
     keys = counter.keys()
     for word in keys:
         if word_filter(word):
             del counter[word]
-        if counter[word] <= 3:
+        if counter[word] < min_count:
             num_unk += counter[word]
             del counter[word]
     counter['<unk>'] = num_unk
@@ -60,7 +71,7 @@ def build_vocab(data_files):
 
 
 def build_data(data_files, train_data, dev_data, test_data, word_inds):
-    context = train_data.shape[0]
+    context = train_data.shape[0] - 1
     data_ind = 0
     for f in data_files:
         path = pjoin(BROWN_CORPUS_RAW_PATH, f)
@@ -72,10 +83,11 @@ def build_data(data_files, train_data, dev_data, test_data, word_inds):
                 if not line:
                     continue
                 words = [pair.split('/')[0].lower() for pair in line.split(' ')]
-                # FIXME Check this
-                words = ['<null>'] * (context - 2) + ['<s>'] + words + ['</s>']
-                for k in range(context - 1, len(words)):
-                    w_inds = [word_inds[w] for w in words[k-context+1:k+1]]
+                # NOTE Need to be careful here
+                words = ['<null>'] * (context - 1) + ['<s>'] + words + ['</s>']
+                # Begin right after start symbol, stop at end symbol inclusive
+                for k in range(context, len(words)):
+                    w_inds = [word_inds[w] for w in words[k-context:k+1]]
                     if data_ind < N_train:
                         train_data[:, data_ind] = w_inds
                     elif data_ind < N_train + N_dev:
@@ -112,9 +124,9 @@ if __name__ == '__main__':
     N_test = (num_words + num_sents) - N_train - N_dev
 
     # NOTE Storing 1-hot vectors here extremely in-efficient
-    train_data = np.empty((context, N_train), dtype=np.int32)
-    dev_data = np.empty((context, N_dev), dtype=np.int32)
-    test_data = np.empty((context, N_test), dtype=np.int32)
+    train_data = np.empty((context + 1, N_train), dtype=np.int32)
+    dev_data = np.empty((context + 1, N_dev), dtype=np.int32)
+    test_data = np.empty((context + 1, N_test), dtype=np.int32)
 
     build_data(data_files, train_data, dev_data, test_data, word_inds)
 
