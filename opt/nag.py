@@ -9,6 +9,7 @@ class NesterovOptimizer(MomentumOptimizer):
         def compute_update(self, data, labels):
             mom = self.get_mom()
             cost, _ = self.model.cost_and_grad(data, labels, back=False)
+            self.update_costs(cost)
 
             # Update parameters with partial update for peek-ahead
             for p in self.params:

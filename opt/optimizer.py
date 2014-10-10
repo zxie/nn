@@ -34,10 +34,9 @@ class Optimizer(object):
 
     def run(self, data, labels):
         # Function called externally
-        cost = self.compute_update(data, labels)
+        self.compute_update(data, labels)
         self.apply_update()
         self.iters += 1
-        return cost
 
     def compute_update(self, grads):
         raise NotImplementedError()

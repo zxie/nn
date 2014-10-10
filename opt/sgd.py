@@ -23,6 +23,10 @@ class MomentumOptimizer(Optimizer):
             self.vel[p] = zeros(self.params[p].shape)
         self.updates = self.vel
 
+        # Keep track of cost and smoothed cost
+        self.costs = list()
+        self.expcosts = list()
+
     def get_mom(self):
         if self.iters < self.low_mom_iters:
             mom = self.mom_low
@@ -31,17 +35,30 @@ class MomentumOptimizer(Optimizer):
         return mom
 
     def compute_update(self, data, labels):
-        cost, grads = self.model.cost_and_grad(data, labels)
         mom = self.get_mom()
+        cost, grads = self.model.cost_and_grad(data, labels)
+        self.update_costs(cost)
         for p in grads:
             self.vel[p] = mom * self.vel[p] + self.alpha * grads[p]
-        return cost
+
+    def update_costs(self, cost):
+        self.costs.append(cost)
+        if not self.expcosts:
+            self.expcosts.append(cost)
+        else:
+            # PARAM
+            self.expcosts.append(0.01*cost + 0.99*self.expcosts[-1])
 
     def to_file(self, fout):
         pickle.dump(self.iters, fout)
+        pickle.dump(self.costs, fout)
+        pickle.dump(self.expcosts, fout)
         pickle.dump([self.vel[k].as_numpy_array() for k in self.model.param_keys], fout)
 
     def from_file(self, fin):
         self.iters = pickle.load(fin)
+        self.costs = pickle.load(fin)
+        self.expcosts = pickle.load(fin)
         loaded_vels = pickle.load(fin)
-        self.vel = zip(self.model.param_keys(), [array(v) for v in loaded_vels])
+        # Put back on gpu
+        self.vel = zip(self.model.param_keys, [array(v) for v in loaded_vels])

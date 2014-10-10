@@ -1,5 +1,3 @@
-import json
-from run_utils import dump_config
 from collections import defaultdict
 
 SKIP_KEYS = ['descs', 'defaults']
@@ -35,10 +33,13 @@ class HyperparamStruct(object):
             parser.add_argument(argk, type=type(self.__dict__[k]), default=self.__dict__[k],
                     help=self.descs[k])
 
-    def set_from_args(self, args):
-        for (k, v) in args.__dict__.iteritems():
+    def set_from_dict(self, d):
+        for (k, v) in d.iteritems():
             if k in self.__dict__:
                 self.__dict__[k] = v
+
+    def set_from_args(self, args):
+        self.set_from_dict(args.__dict__)
 
     def add(self, key, default_value):
         self.__dict__[key] = default_value
@@ -55,24 +56,4 @@ class HyperparamStruct(object):
 
 class ModelHyperparams(HyperparamStruct):
     # TODO Put common defaults here
-    pass
-
-
-def dump_to_json(hp_structs, out_file):
-    '''
-    Save hyperparameters for model, optimizer, etc. for later reference and loading
-    Optimizer, model, etc. can have separate hyperparameter structs so not a method in class
-    '''
-    merged_dict = dict()
-    for hp_struct in hp_structs:
-        for k in hp_struct.__dict__:
-            if k in SKIP_KEYS:
-                continue
-            # Check we don't have hyperparams with same name
-            assert k not in merged_dict, 'Repeated hyperparam: %s' % k
-            merged_dict[k] = hp_struct.__dict__[k]
-    dump_config(merged_dict, out_file)
-
-
-def load_from_json(hp_structs):
     pass

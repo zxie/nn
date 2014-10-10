@@ -2,6 +2,8 @@ import h5py
 import cPickle as pickle
 from dset_paths import BROWN_CORPUS_DATA_FILE, BROWN_CORPUS_VOCAB_FILE
 
+# TODO Set up so only loads parts of dataset (a few files)
+# at a time for large datasets
 
 class Dataset(object):
 
@@ -10,6 +12,7 @@ class Dataset(object):
         self.feat_dim = feat_dim
         self.batch_size = batch_size
         self.data = None
+        self.data_ind = 0
 
     def data_left(self):
         return self.data_ind < self.data.shape[1]

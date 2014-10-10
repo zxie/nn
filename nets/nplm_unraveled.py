@@ -3,7 +3,7 @@ from ops import tanh, mult, rand, zeros, empty
 from param_utils import ParamStruct, ModelHyperparams
 from log_utils import get_logger
 from opt_utils import create_optimizer
-from net import Net
+from models import Net
 
 '''
 Implementation of
@@ -20,7 +20,7 @@ out_file = 'nplm_params.pk'
 
 class NPLMHyperparams(ModelHyperparams):
 
-    def __init__(self, entries):
+    def __init__(self, **entries):
         self.defaults = [
             ('embed_size', 30, 'size of word embeddings'),
             ('context_size', 4, 'size of word context (so 4 for 5-gram)'),
@@ -32,11 +32,13 @@ class NPLMHyperparams(ModelHyperparams):
 
 class NPLM(Net):
 
-    def __init__(self, dset, hps, opt_hps, opt='nag'):
+    def __init__(self, dset, hps, opt_hps, train=True, opt='nag'):
         self.params = dict()
         self.dset = dset
+        self.train = train
         self.hps = hps
         self.vocab_size = len(dset.word_inds)
+        self.likelihood_size = self.vocab_size
         logger.debug('Vocab size: %d' % self.vocab_size)
 
         # PARAM
@@ -45,12 +47,13 @@ class NPLM(Net):
         # PARAM Following Vaswani et al. EMNLP 2013
         self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
 
-        self.alloc_params()
+        if train:
+            self.alloc_params()
 
-        # NOTE Make sure to initialize optimizer after alloc_params
-        self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
-                mom=opt_hps.mom, mom_low=opt_hps.mom_low,
-                low_mom_iters=opt_hps.low_mom_iters)
+            # NOTE Make sure to initialize optimizer after alloc_params
+            self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
+                    mom=opt_hps.mom, mom_low=opt_hps.mom_low,
+                    low_mom_iters=opt_hps.low_mom_iters)
 
     def alloc_params(self):
         hps = self.hps
@@ -64,12 +67,15 @@ class NPLM(Net):
         self.param_keys = sorted(self.params.keys())
         logger.info('Allocated parameters')
 
-    def run(self):
+    def run(self, back=True):
         data, labels = self.dset.get_batch()
         #cost, grads = self.cost_and_grad(data, labels)
         #self.check_grad(data, labels, grads)
-        cost = self.update_params(data, labels)
-        return cost
+        if back:
+            self.update_params(data, labels)
+        else:
+            cost, probs = self.cost_and_grad(data, labels, back=False)
+            return cost, probs
 
     def cost_and_grad(self, data, labels, back=True):
         # May not be full batch size if at end of dataset

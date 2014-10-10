@@ -89,3 +89,9 @@ def get_run_dirs(parent_dir):
         if TimeString.match(d) and not d.endswith('bak'):
             run_dirs.append(pjoin(parent_dir, d))
     return run_dirs
+
+
+def add_run_data(cfg):
+    cfg['host'] = get_hostname()
+    cfg['git_rev'] = get_git_revision()
+    cfg['pid'] = os.getpid()
