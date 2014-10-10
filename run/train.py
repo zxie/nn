@@ -50,4 +50,7 @@ if __name__ == '__main__':
         with open(params_file, 'wb') as fout:
             model.to_file(fout)
         # Symlink param file to latest
-        os.symlink(params_file, pjoin(args.out_dir, 'params.pk'))
+        sym_file = pjoin(args.out_dir, 'params.pk')
+        if os.path.exists(sym_file):
+            os.remove(sym_file)
+        os.symlink(params_file, sym_file)

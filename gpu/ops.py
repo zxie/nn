@@ -35,6 +35,27 @@ def sigmoid(x):
 def tanh(x):
     return x.tanh()
 
+def get_nl(nl):
+    if nl == 'relu':
+        return relu
+    elif nl == 'sigmoid':
+        return sigmoid
+    elif nl == 'tanh':
+        return tanh
+    else:
+        assert False, 'No such nonlinearity: %s' % nl
+
+def get_nl_grad(nl, act):
+    if nl == 'relu':
+        return act > 0
+    elif nl == 'sigmoid':
+        return act * (1 - act)
+    elif nl == 'tanh':
+        return (1 - act*act)
+    else:
+        assert False, 'No such nonlinearity: %s' % nl
+
+
 # TODO RelU
 
 # Matrix multiply

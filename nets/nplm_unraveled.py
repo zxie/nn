@@ -1,5 +1,5 @@
 import numpy as np
-from ops import tanh, mult, rand, zeros, empty
+from ops import mult, rand, zeros, empty, get_nl, get_nl_grad
 from param_utils import ParamStruct, ModelHyperparams
 from log_utils import get_logger
 from opt_utils import create_optimizer
@@ -25,7 +25,9 @@ class NPLMHyperparams(ModelHyperparams):
             ('embed_size', 30, 'size of word embeddings'),
             ('context_size', 4, 'size of word context (so 4 for 5-gram)'),
             ('hidden_size', 50, 'size of hidden layer'),
-            ('batch_size', 512, 'size of dataset batches')
+            ('batch_size', 512, 'size of dataset batches'),
+            # Not really a hyperparameter...
+            ('nl', 'relu', 'type of nonlinearity')
         ]
         super(NPLMHyperparams, self).__init__(entries)
 
@@ -37,6 +39,7 @@ class NPLM(Net):
         self.dset = dset
         self.train = train
         self.hps = hps
+        self.nl = get_nl(hps.nl)
         self.vocab_size = len(dset.word_inds)
         self.likelihood_size = self.vocab_size
         logger.debug('Vocab size: %d' % self.vocab_size)
@@ -90,7 +93,7 @@ class NPLM(Net):
 
         # Forward prop
 
-        a = tanh(mult(p.H, x) + p.d)
+        a = self.nl(mult(p.H, x) + p.d)
         # TODO Try disabling direct connections, apparently takes more
         # epochs to train but may reach lower perplexity
         y = mult(p.W, x) + mult(p.U, a) + p.b
@@ -126,8 +129,7 @@ class NPLM(Net):
         dLdx = mult(p.W.T, dLdy)
         dLda = mult(p.U.T, dLdy)
 
-        # NOTE Gradient of nonlinearity is hardcoded here
-        dLdo = (1 - a*a) * dLda
+        dLdo = get_nl_grad(self.hps.nl, a) * dLda
         grads['d'] = dLdo.sum(axis=1).reshape((-1, 1))
         dLdx += mult(p.H.T, dLdo)
         grads['H'] = mult(dLdo, x.T)
