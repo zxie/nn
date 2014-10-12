@@ -29,8 +29,9 @@ def add_config_val(key, val, fname):
 
 
 def get_git_revision():
-    return subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+    rev = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
             stdout=subprocess.PIPE).communicate()[0]
+    return rev.strip()
 
 
 def get_hostname():

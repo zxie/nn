@@ -133,6 +133,7 @@ if __name__ == '__main__':
     # Randomly shuffle and save data
     # NOTE Shuffling may hurt any future caching you want to do...
 
+    np.random.seed(19)
     np.random.shuffle(train_data.T)
     np.random.shuffle(dev_data.T)
     np.random.shuffle(test_data.T)

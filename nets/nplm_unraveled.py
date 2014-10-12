@@ -50,9 +50,9 @@ class NPLM(Net):
         # PARAM Following Vaswani et al. EMNLP 2013
         self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
 
-        if train:
-            self.alloc_params()
+        self.alloc_params()
 
+        if train:
             # NOTE Make sure to initialize optimizer after alloc_params
             self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
                     mom=opt_hps.mom, mom_low=opt_hps.mom_low,
@@ -100,6 +100,9 @@ class NPLM(Net):
         # Softmax
         probs = (y - y.max(axis=0)).exp()
         probs = probs / probs.sum(axis=0)
+
+        if labels is None:
+            return None, probs
 
         # NOTE For more precision if necessary convert to nparray early
         cost_array = np.empty(bsize, dtype=np.float64)

@@ -48,8 +48,10 @@ class BrownCorpus(Dataset):
         elif subset == 'test':
             self.data = h5f['test'][...]
 
+        self.labels = self.data[-1, :]
+
     def get_batch(self):
         self.batch = self.data[:-1, self.data_ind:self.data_ind+self.batch_size]
-        self.batch_labels = self.data[-1, self.data_ind:self.data_ind+self.batch_size]
+        self.batch_labels = self.labels[self.data_ind:self.data_ind+self.batch_size]
         self.data_ind += self.batch.shape[1]
         return self.batch, self.batch_labels

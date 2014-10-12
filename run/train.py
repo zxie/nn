@@ -26,8 +26,10 @@ if __name__ == '__main__':
     nplm_hps.set_from_args(args)
     opt_hps.set_from_args(args)
     cfg = args.__dict__.copy()
+    if not args['cfg_file']:
+        args['cfg_file'] = pjoin(args.out_dir, 'cfg.json')
     add_run_data(cfg)
-    dump_config(cfg, pjoin(args.out_dir, 'cfg.json'))
+    dump_config(cfg, args['cfg_file'])
 
     # Load dataset
     dataset = BrownCorpus(args.context_size, args.batch_size)
