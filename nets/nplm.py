@@ -3,7 +3,7 @@ from ops import rand, zeros
 from graph import topological_traverse, get_all_nodes
 from nodes import ParamNode, IndexedParamNode, AffineNode, TanhNode, SumNode,\
         ObjectiveNode, SoftmaxNode, LinearNode
-from dset import BrownCorpus
+from brown_corpus import BrownCorpus
 from nag import NesterovOptimizer
 from log_utils import get_logger
 

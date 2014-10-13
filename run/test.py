@@ -3,7 +3,7 @@ from os.path import join as pjoin
 import h5py
 import numpy as np
 import argparse
-from dset import BrownCorpus
+from brown_corpus import BrownCorpus
 from nplm_unraveled import NPLM, NPLMHyperparams
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger

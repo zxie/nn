@@ -2,7 +2,7 @@ import os
 from os.path import join as pjoin
 import numpy as np
 import argparse
-from dset import BrownCorpus
+from brown_corpus import BrownCorpus
 from ops import array
 from nplm_unraveled import NPLM, NPLMHyperparams
 from optimizer import OptimizerHyperparams

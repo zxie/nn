@@ -1,7 +1,7 @@
 import os
 import argparse
 from os.path import join as pjoin
-from dset import BrownCorpus
+from brown_corpus import BrownCorpus
 from nplm_unraveled import NPLM, NPLMHyperparams
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
