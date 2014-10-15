@@ -1,19 +1,19 @@
 import h5py
 import cPickle as pickle
 from dset import Dataset
-from dset_paths import BROWN_CORPUS_DATA_FILE, BROWN_CORPUS_VOCAB_FILE
+from dset_paths import CHAR_CORPUS_DATA_FILE, CHAR_CORPUS_VOCAB_FILE
 
-class BrownCorpus(Dataset):
+class CharCorpus(Dataset):
 
     def __init__(self, feat_dim, batch_size, subset='train'):
-        super(BrownCorpus, self).__init__(feat_dim, batch_size)
+        super(CharCorpus, self).__init__(feat_dim, batch_size)
         # Load vocab
-        with open(BROWN_CORPUS_VOCAB_FILE, 'rb') as fin:
-            self.word_inds = pickle.load(fin)
-            self.vocab_size = len(self.word_inds)
-        self.words = dict((v, k) for k, v in self.word_inds.iteritems())
+        with open(CHAR_CORPUS_VOCAB_FILE, 'rb') as fin:
+            self.char_inds = pickle.load(fin)
+            self.vocab_size = len(self.char_inds)
+        self.chars = dict((v, k) for k, v in self.char_inds.iteritems())
         # Load data matrices
-        h5f = h5py.File(BROWN_CORPUS_DATA_FILE, 'r')
+        h5f = h5py.File(CHAR_CORPUS_DATA_FILE, 'r')
         self.subset = subset
 
         # NOTE These are all just word indices, no point

@@ -1,8 +1,8 @@
 import math
 import h5py
 import argparse
-from dset import BrownCorpus
-from os.path import join as pjoin
+#from brown_corpus import BrownCorpus
+from char_corpus import CharCorpus
 
 '''
 Compute perplexity given a set of likelihoods and labels
@@ -30,7 +30,8 @@ if __name__ == '__main__':
     # FIXME PARAM
     context_size = 4
     batch_size = 512
-    dataset = BrownCorpus(context_size, batch_size, subset='dev')
+    #dataset = BrownCorpus(context_size, batch_size, subset='dev')
+    dataset = CharCorpus(context_size, batch_size, subset='dev')
     labels = dataset.labels
 
     h5f = h5py.File(args.likelihoods_file)

@@ -1,3 +1,5 @@
+import numpy as np
+
 # TODO Set up so only loads parts of dataset (a few files)
 # at a time for large datasets
 
@@ -16,6 +18,8 @@ class Dataset(object):
     def get_batch(self):
         raise NotImplementedError()
 
-    def restart(self):
+    def restart(self, shuffle=False):
         ''' For starting a new epoch '''
         self.data_ind = 0
+        if shuffle:
+            np.random.shuffle(self.data.T)

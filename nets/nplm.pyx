@@ -1,5 +1,7 @@
+import cython
 import numpy as np
-from ops import mult, rand, zeros, empty, get_nl, get_nl_grad
+cimport numpy as np
+from ops import mult, rand, zeros, exp, empty, get_nl, get_nl_grad
 from param_utils import ParamStruct, ModelHyperparams
 from log_utils import get_logger
 from opt_utils import create_optimizer
@@ -15,8 +17,6 @@ Follows some details given in
 '''
 
 logger = get_logger()
-
-out_file = 'nplm_params.pk'
 
 class NPLMHyperparams(ModelHyperparams):
 
@@ -40,7 +40,7 @@ class NPLM(Net):
         self.train = train
         self.hps = hps
         self.nl = get_nl(hps.nl)
-        self.vocab_size = len(dset.word_inds)
+        self.vocab_size = dset.vocab_size
         self.likelihood_size = self.vocab_size
         logger.debug('Vocab size: %d' % self.vocab_size)
 
@@ -80,6 +80,8 @@ class NPLM(Net):
             cost, probs = self.cost_and_grad(data, labels, back=False)
             return cost, probs
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def cost_and_grad(self, data, labels, back=True):
         # May not be full batch size if at end of dataset
         bsize = data.shape[1]
@@ -87,7 +89,10 @@ class NPLM(Net):
         p = ParamStruct(**self.params)
         x = empty((self.dset.feat_dim * embed_size, bsize))
 
-        for k in range(bsize):
+        cdef int k, j
+        cdef int context_size = self.hps.context_size
+
+        for k in xrange(bsize):
             # NOTE Transpose to get words in order
             x[:, k] = p.C[:, data[:, k]].T.ravel()
 
@@ -98,7 +103,7 @@ class NPLM(Net):
         # epochs to train but may reach lower perplexity
         y = mult(p.W, x) + mult(p.U, a) + p.b
         # Softmax
-        probs = (y - y.max(axis=0)).exp()
+        probs = exp(y - y.max(axis=0))
         probs = probs / probs.sum(axis=0)
 
         if labels is None:
@@ -106,7 +111,7 @@ class NPLM(Net):
 
         # NOTE For more precision if necessary convert to nparray early
         cost_array = np.empty(bsize, dtype=np.float64)
-        for k in range(bsize):
+        for k in xrange(bsize):
             cost_array[k] = -1 * np.log(probs[labels[k], k])
         cost = cost_array.sum() / bsize
 
@@ -121,7 +126,7 @@ class NPLM(Net):
 
         dLdy = probs
         # NOTE This changes probs
-        for k in range(bsize):
+        for k in xrange(bsize):
             dLdy[labels[k], k] -= 1
 
         grads['b'] = dLdy.sum(axis=1).reshape((-1, 1))
@@ -136,9 +141,11 @@ class NPLM(Net):
         grads['d'] = dLdo.sum(axis=1).reshape((-1, 1))
         dLdx += mult(p.H.T, dLdo)
         grads['H'] = mult(dLdo, x.T)
-        for k in range(bsize):
-            for i, l in enumerate(data[:, k]):
-                grads['C'][:, l] += dLdx[i*embed_size:(i+1)*embed_size, k]
+        for k in xrange(bsize):
+            #for i, l in enumerate(data[:, k]):
+                #grads['C'][:, l] += dLdx[i*embed_size:(i+1)*embed_size, k]
+            for j in xrange(context_size):
+                grads['C'][:, data[j, k]] += dLdx[j*embed_size:(j+1)*embed_size, k]
 
         # Normalize
         for p in grads:
@@ -149,18 +156,19 @@ class NPLM(Net):
     # NOTE Try b eps=1e-3, W eps=10.0, U eps=1e-2, d eps=1e-2, H eps=1.0
     # NOTE For C grad check columns of words that appear in batch
     # in the current data
-    def check_grad(self, data, labels, grads, eps=1.0):
+    def check_grad(self, data, labels, grads, eps=0.01):
         #for p in self.params:
-        for p in ['H']:
+        cdef int i, j
+        for p in ['C']:
             logger.info('Grad check on %s' % p)
             param = self.params[p]
             grad = grads[p]
             # NOTE Definitely want to use numpy at not 32 bit floats on GPU here
             num_grad = np.empty(param.shape, dtype=np.float64)
-            for i in range(param.shape[0]):
+            for i in xrange(param.shape[0]):
                 ## NOTE Transpose to get words in order
-                #for j in data.T.ravel():
-                for j in range(param.shape[1]):
+                for j in data.T.ravel():
+                #for j in range(param.shape[1]):
                     # NOTE Does 2-way numerical gradient
                     param[i, j] += eps
                     cost_p, _ = self.cost_and_grad(data, labels, back=False)

@@ -3,18 +3,23 @@ from os.path import join as pjoin
 import h5py
 import numpy as np
 import argparse
-from brown_corpus import BrownCorpus
-from nplm_unraveled import NPLM, NPLMHyperparams
+#from brown_corpus import BrownCorpus
+from char_corpus import CharCorpus
+#from nplm import NPLM, NPLMHyperparams
+from nclm import NCLM, NCLMHyperparams
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import CfgStruct
 from run_utils import load_config
+from gpu_utils import gnumpy_setup
+from ops import as_np
 
 '''
 Takes a trained model and writes the likelihoods
 '''
 
 logger = get_logger()
+gnumpy_setup()
 
 def write_likelihoods(likelihoods, out_file):
     f = h5py.File(out_file, 'w')
@@ -28,17 +33,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cfg = load_config(args.cfg_file)
-    nplm_hps = NPLMHyperparams()
+    model_hps = NCLMHyperparams()
     opt_hps = OptimizerHyperparams()
-    nplm_hps.set_from_dict(cfg)
+    model_hps.set_from_dict(cfg)
     opt_hps.set_from_dict(cfg)
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    dataset = BrownCorpus(nplm_hps.context_size, nplm_hps.batch_size, subset='dev')
+    dataset = CharCorpus(model_hps.context_size, model_hps.batch_size, subset='dev')
 
     # Construct network
-    model = NPLM(dataset, nplm_hps, opt_hps, train=False, opt='nag')
+    model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
     # Load parameters
     with open(pjoin(os.path.dirname(args.cfg_file), 'params.pk'), 'rb') as fin:
         model.from_file(fin)
@@ -47,7 +52,7 @@ if __name__ == '__main__':
     it = 0
     while dataset.data_left():
         cost, probs = model.run(back=False)
-        likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = probs.as_numpy_array()
+        likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs)
         logger.info('iter %d, cost: %f' % (it, cost))
         it += 1
 

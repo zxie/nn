@@ -1,6 +1,6 @@
 import cPickle as pickle
 from log_utils import get_logger
-from ops import array
+from ops import array, as_np
 
 # TODO Try and implement standard DNN, RNN, CNN models which
 # other models can extend
@@ -24,7 +24,7 @@ class Net(object):
     def to_file(self, fout):
         logger.info('Saving state')
         # TODO Move this to parent model class
-        pickle.dump([self.params[k].as_numpy_array() for k in self.param_keys], fout)
+        pickle.dump([as_np(self.params[k]) for k in self.param_keys], fout)
         self.opt.to_file(fout)
 
     def from_file(self, fin):

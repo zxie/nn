@@ -9,3 +9,6 @@ BROWN_CORPUS_URL =\
 BROWN_CORPUS_RAW_PATH = pjoin(DSET_PATH, 'brown_raw')
 BROWN_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'brown_data.h5')
 BROWN_CORPUS_VOCAB_FILE = pjoin(DSET_PATH, 'brown_vocab.pk')
+
+CHAR_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'char_data.h5')
+CHAR_CORPUS_VOCAB_FILE = pjoin(DSET_PATH, 'char_vocab.pk')

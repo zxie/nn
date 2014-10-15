@@ -1,6 +1,5 @@
 import cPickle as pickle
-from ops import array
-from ops import zeros
+from ops import array, zeros, as_np
 from optimizer import Optimizer
 
 '''
@@ -53,7 +52,7 @@ class MomentumOptimizer(Optimizer):
         pickle.dump(self.iters, fout)
         pickle.dump(self.costs, fout)
         pickle.dump(self.expcosts, fout)
-        pickle.dump([self.vel[k].as_numpy_array() for k in self.model.param_keys], fout)
+        pickle.dump([as_np(self.vel[k]) for k in self.model.param_keys], fout)
 
     def from_file(self, fin):
         self.iters = pickle.load(fin)
