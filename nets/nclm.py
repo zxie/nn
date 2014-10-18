@@ -13,9 +13,9 @@ class NCLMHyperparams(ModelHyperparams):
 
     def __init__(self, **entries):
         self.defaults = [
-            ('embed_size', 30, 'size of char embeddings'),
+            ('embed_size', 10, 'size of char embeddings'),
             ('context_size', 11, 'size of char context (so 7 for 8-gram)'),
-            ('hidden_size', 10000, 'size of hidden layer'),
+            ('hidden_size', 1000, 'size of hidden layer'),
             ('batch_size', 512, 'size of dataset batches'),
             # Not really a hyperparameter...
             ('nl', 'relu', 'type of nonlinearity')

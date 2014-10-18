@@ -90,8 +90,6 @@ def get_nl_grad(nl, act):
         assert False, 'No such nonlinearity: %s' % nl
 
 
-# TODO RelU
-
 # Matrix multiply
 
 def mult(A, B):

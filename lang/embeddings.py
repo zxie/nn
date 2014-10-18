@@ -44,8 +44,7 @@ if __name__ == '__main__':
     embeddings = embeddings / np.sqrt(np.sum(np.square(embeddings), axis=1)).reshape((-1, 1))
     tree = KDTree(embeddings, leaf_size=30, metric='euclidean')
     #query = embeddings[model.dset.word_inds['king'], :]
-    query = embeddings[model.dset.char_inds['&'], :]
-    query = query / np.linalg.norm(query)
+    query = embeddings[model.dset.char_inds['e'], :]
     # PARAM
     dists, inds = tree.query(query, k=10)
     for dist, ind in zip(dists.ravel(), inds.ravel()):

@@ -22,7 +22,7 @@ context = 11
 #   - {[noise], [vocalized-noise], [laughter]} in the case of SWBD
 #   - {<NOISE>} in the case of WSJ
 # NOTE For large text corpora do this using C++ or sed as in biglm
-pattern = re.compile('[^a-z\.\'\&\/ ]+', re.UNICODE)
+pattern = re.compile('[^a-z\-\'\&\/ ]+', re.UNICODE)
 def char_filter(text):
     text = pattern.sub('', text)
     return text

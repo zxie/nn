@@ -32,6 +32,17 @@ class NPLMHyperparams(ModelHyperparams):
         super(NPLMHyperparams, self).__init__(entries)
 
 
+# Moved outside class so Cython + multithreading works
+
+# PARAM
+rand_range = [-0.1, 0.1]
+def rand_init(shape):
+    return rand(shape, rand_range)
+
+def bias_init(shape):
+    return zeros(shape)
+
+
 class NPLM(Net):
 
     def __init__(self, dset, hps, opt_hps, train=True, opt='nag'):
@@ -44,11 +55,10 @@ class NPLM(Net):
         self.likelihood_size = self.vocab_size
         logger.debug('Vocab size: %d' % self.vocab_size)
 
-        # PARAM
-        rand_range = [-0.01, 0.01]
-        self.rand_init = lambda shape: rand(shape, rand_range)
+        #self.rand_init = lambda shape: rand(shape, rand_range)
         # PARAM Following Vaswani et al. EMNLP 2013
-        self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
+        #self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
+        #self.bias_init = lambda shape: zeros(shape)# - np.log(self.vocab_size) * 0.01
 
         self.alloc_params()
 
@@ -60,15 +70,18 @@ class NPLM(Net):
 
     def alloc_params(self):
         hps = self.hps
-        self.params['C'] = self.rand_init((hps.embed_size, self.vocab_size))
-        self.params['H'] = self.rand_init((hps.hidden_size, hps.context_size*hps.embed_size))
-        self.params['d'] = self.bias_init((hps.hidden_size, 1))
-        self.params['U'] = self.rand_init((self.vocab_size, hps.hidden_size))
-        self.params['b'] = self.bias_init((self.vocab_size, 1))
-        self.params['W'] = self.rand_init((self.vocab_size, hps.context_size*hps.embed_size))
+        self.params['C'] = rand_init((hps.embed_size, self.vocab_size))
+        self.params['H'] = rand_init((hps.hidden_size, hps.context_size*hps.embed_size))
+        self.params['d'] = bias_init((hps.hidden_size, 1))
+        self.params['U'] = rand_init((self.vocab_size, hps.hidden_size))
+        self.params['b'] = bias_init((self.vocab_size, 1))
+        self.params['W'] = rand_init((self.vocab_size, hps.context_size*hps.embed_size))
 
         self.param_keys = sorted(self.params.keys())
-        logger.info('Allocated parameters')
+        num_params = 0.0
+        for k in self.param_keys:
+            num_params += np.prod(self.params[k].shape)
+        logger.info('Allocated %d parameters' % num_params)
 
     def run(self, back=True):
         data, labels = self.dset.get_batch()
@@ -159,7 +172,7 @@ class NPLM(Net):
     def check_grad(self, data, labels, grads, eps=0.01):
         #for p in self.params:
         cdef int i, j
-        for p in ['C']:
+        for p in ['W']:
             logger.info('Grad check on %s' % p)
             param = self.params[p]
             grad = grads[p]
@@ -167,8 +180,8 @@ class NPLM(Net):
             num_grad = np.empty(param.shape, dtype=np.float64)
             for i in xrange(param.shape[0]):
                 ## NOTE Transpose to get words in order
-                for j in data.T.ravel():
-                #for j in range(param.shape[1]):
+                #for j in data.T.ravel():
+                for j in range(param.shape[1]):
                     # NOTE Does 2-way numerical gradient
                     param[i, j] += eps
                     cost_p, _ = self.cost_and_grad(data, labels, back=False)
