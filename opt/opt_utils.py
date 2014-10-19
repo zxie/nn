@@ -1,4 +1,4 @@
-from sgd import MomentumOptimizer
+from mom import MomentumOptimizer
 from nag import NesterovOptimizer
 
 def create_optimizer(name, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100):

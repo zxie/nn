@@ -1,4 +1,4 @@
-from sgd import MomentumOptimizer
+from mom import MomentumOptimizer
 
 # TODO Slowly increasing momentum schedule described in
 # "On the importance of initialization and momentum in deep learning"
