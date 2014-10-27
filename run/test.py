@@ -40,7 +40,7 @@ if __name__ == '__main__':
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    dataset = CharCorpus(model_hps.context_size, model_hps.batch_size, subset='dev')
+    dataset = CharCorpus(model_hps.context_size, model_hps.batch_size, subset='test')
 
     # Construct network
     model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')

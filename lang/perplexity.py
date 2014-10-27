@@ -27,11 +27,11 @@ if __name__ == '__main__':
     parser.add_argument('likelihoods_file', help='File containing likelihoods')
     args = parser.parse_args()
 
-    # FIXME PARAM
+    # NOTE These parameters don't affect calculation
     context_size = 4
     batch_size = 512
     #dataset = BrownCorpus(context_size, batch_size, subset='dev')
-    dataset = CharCorpus(context_size, batch_size, subset='dev')
+    dataset = CharCorpus(context_size, batch_size, subset='test')
     labels = dataset.labels
 
     h5f = h5py.File(args.likelihoods_file)
