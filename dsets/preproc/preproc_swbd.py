@@ -11,7 +11,8 @@ test perplexity on it
 '''
 
 # PARAM FIXME
-SWBD_DATA_PATH = '/scail/group/deeplearning/speech/zxie/kaldi-stanford/kaldi-trunk/egs/swbd/s5b/data'
+#SWBD_DATA_PATH = '/scail/group/deeplearning/speech/zxie/kaldi-stanford/kaldi-trunk/egs/swbd/s5b/data'
+SWBD_DATA_PATH = '/media/zxie/bak/swbd_data'
 SWBD_TRAIN_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'train/text')
 SWBD_DEV_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'dev/text')
 SWBD_TEST_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'eval2000/text')

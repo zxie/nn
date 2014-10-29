@@ -1,6 +1,10 @@
+import os
 from os.path import join as pjoin
 
-DSET_PATH = '/scail/data/group/deeplearning/u/zxie/dsets'
+if 'DSET_PATH' in os.environ:
+    DSET_PATH = os.environ['DSET_PATH']
+else:
+    DSET_PATH = '/scail/data/group/deeplearning/u/zxie/dsets'
 
 # NLP data
 
