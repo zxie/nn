@@ -46,8 +46,7 @@ def bias_init(shape):
 class NPLM(Net):
 
     def __init__(self, dset, hps, opt_hps, train=True, opt='nag'):
-        self.params = dict()
-        self.dset = dset
+        super(NPLM, self).__init__(dset)
         self.train = train
         self.hps = hps
         self.nl = get_nl(hps.nl)
@@ -84,6 +83,8 @@ class NPLM(Net):
         logger.info('Allocated %d parameters' % num_params)
 
     def run(self, back=True):
+        super(NPLM, self).run(back=back)
+
         data, labels = self.dset.get_batch()
         #cost, grads = self.cost_and_grad(data, labels)
         #self.check_grad(data, labels, grads)

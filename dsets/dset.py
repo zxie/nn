@@ -11,6 +11,8 @@ class Dataset(object):
         self.batch_size = batch_size
         self.data = None
         self.data_ind = 0
+        # Shuffle consistently
+        np.random.seed(19)
 
     def data_left(self):
         return self.data_ind < self.data.shape[1]

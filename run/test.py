@@ -30,6 +30,7 @@ def write_likelihoods(likelihoods, out_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg_file', help='config file with run data for model to use')
+    parser.add_argument('--params_file', help='optionally specify params file instead of using default params.pk in cfg_file directory')
     args = parser.parse_args()
 
     cfg = load_config(args.cfg_file)
@@ -45,7 +46,11 @@ if __name__ == '__main__':
     # Construct network
     model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
     # Load parameters
-    with open(pjoin(os.path.dirname(args.cfg_file), 'params.pk'), 'rb') as fin:
+    if args.params_file:
+        params_file = args.params_file
+    else:
+        params_file = pjoin(os.path.dirname(args.cfg_file), 'params.pk')
+    with open(params_file, 'rb') as fin:
         model.from_file(fin)
 
     likelihoods = np.empty((model.likelihood_size, dataset.data.shape[1]), dtype=np.float32)

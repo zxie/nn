@@ -3,24 +3,17 @@ import h5py
 import cPickle as pickle
 from preproc_char import char_filter, context
 from os.path import join as pjoin
-from dset_paths import CHAR_CORPUS_VOCAB_FILE, DSET_PATH
+from dset_paths import CHAR_CORPUS_VOCAB_FILE,\
+    SWBD_DATA_PATH, SWBD_CORPUS_DATA_FILE
 
 '''
 Saves SWBD training text in h5 file so we can
 test perplexity on it
 '''
 
-# PARAM FIXME
-#SWBD_DATA_PATH = '/scail/group/deeplearning/speech/zxie/kaldi-stanford/kaldi-trunk/egs/swbd/s5b/data'
-SWBD_DATA_PATH = '/media/zxie/bak/swbd_data'
-SWBD_TRAIN_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'train/text')
-SWBD_DEV_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'dev/text')
-SWBD_TEST_TEXT_FILE = pjoin(SWBD_DATA_PATH, 'eval2000/text')
-SWBD_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'swbd_data.h5')
-
 SPECIALS_LIST = frozenset(['[vocalized-noise]', '[laughter]', '[space]', '[noise]', '(%hesitation)'])
 
-def process_text(text_file):
+def process_text(text_file, char_inds):
     num_chars = 0
     transcript = open(text_file, 'r').read().strip()
     lines = transcript.split('\n')
@@ -46,24 +39,23 @@ def process_text(text_file):
 
     return data
 
-
-if __name__ == '__main__':
-    # NOTE Assumes vocab already built, may want to build here later
+def preproc_splits(train_text, dev_text, test_text, out_file):
     char_inds = pickle.load(open(CHAR_CORPUS_VOCAB_FILE, 'rb'))
 
-    train_data = process_text(SWBD_TRAIN_TEXT_FILE)
+    train_data = process_text(train_text, char_inds)
     print 'Done processing train data'
-    dev_data = process_text(SWBD_DEV_TEXT_FILE)
+    dev_data = process_text(dev_text, char_inds)
     print 'Done processing dev data'
-    test_data = process_text(SWBD_TEST_TEXT_FILE)
+    test_data = process_text(test_text, char_inds)
     print 'Done processing test data'
 
+    print 'Shuffling...'
     np.random.seed(19)
     np.random.shuffle(train_data.T)
     np.random.shuffle(dev_data.T)
     np.random.shuffle(test_data.T)
 
-    f = h5py.File(SWBD_CORPUS_DATA_FILE, 'w')
+    f = h5py.File(out_file, 'w')
     dset = f.create_dataset('train', train_data.shape, dtype='i8')
     dset[...] = train_data
     dset = f.create_dataset('dev', dev_data.shape, dtype='i8')
@@ -71,3 +63,12 @@ if __name__ == '__main__':
     dset = f.create_dataset('test', test_data.shape, dtype='i8')
     dset[...] = test_data
     f.close()
+
+
+if __name__ == '__main__':
+    # NOTE Assumes vocab already built, may want to build here later
+
+    preproc_splits(pjoin(SWBD_DATA_PATH, 'train/text'),
+                   pjoin(SWBD_DATA_PATH, 'dev/text'),
+                   pjoin(SWBD_DATA_PATH, 'test/text'),
+                   SWBD_CORPUS_DATA_FILE)

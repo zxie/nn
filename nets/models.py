@@ -10,7 +10,9 @@ logger = get_logger()
 class Net(object):
 
     def __init__(self, dset, opt='nag'):
-        raise NotImplementedError()
+        self.params = dict()
+        self.params_loaded = False
+        self.dset = dset
 
     def alloc_params(self):
         raise NotImplementedError()
@@ -23,7 +25,6 @@ class Net(object):
 
     def to_file(self, fout):
         logger.info('Saving state')
-        # TODO Move this to parent model class
         pickle.dump([as_np(self.params[k]) for k in self.param_keys], fout)
         self.opt.to_file(fout)
 
@@ -33,6 +34,11 @@ class Net(object):
         self.params = dict(zip(self.param_keys, [array(param) for param in loaded_params]))
         if self.train:
             self.opt.from_file(fin)
+        self.params_loaded = True
 
     def update_params(self, data, labels):
         self.opt.run(data, labels)
+
+    def run(self, back=True):
+        if not back and not self.params_loaded:
+            logger.warn('Running testing without having loaded parameters')
