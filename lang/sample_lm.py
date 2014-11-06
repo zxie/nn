@@ -6,7 +6,9 @@ import argparse
 from char_corpus import CharCorpus
 from ops import array, as_np
 #from nplm import NPLM, NPLMHyperparams
-from nclm import NCLM, NCLMHyperparams
+#from nclm import NCLM, NCLMHyperparams
+from rnn import RNN, RNNHyperparams
+from rnn import one_hot
 from optimizer import OptimizerHyperparams
 from run_utils import CfgStruct
 from run_utils import load_config
@@ -20,13 +22,16 @@ def sample_continuation(s, model, order, alpha=1.0):
     # Higher alpha -> more and more like most likely sequence
     #data = array([model.dset.word_inds[w] for w in s[-order+1:]]).reshape(-1, 1)
     data = array(np.array([model.dset.char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
+    data = one_hot(data, model.hps.output_size)
     _, probs = model.cost_and_grad(data, None)
-    probs = as_np(probs).ravel()
+    #print probs.shape
+    probs = np.squeeze(as_np(probs))[:, -1]
+    probs = probs.ravel()
 
     probs = probs ** alpha
     probs = probs / sum(probs)
 
-    w = np.random.choice(range(model.vocab_size), p=probs)
+    w = np.random.choice(range(model.hps.output_size), p=probs)
     #word = model.dset.words[w]
     char = model.dset.chars[w]
     #return word
@@ -40,7 +45,8 @@ if __name__ == '__main__':
 
     cfg = load_config(args.cfg_file)
     #model_hps = NPLMHyperparams()
-    model_hps = NCLMHyperparams()
+    #model_hps = NCLMHyperparams()
+    model_hps = RNNHyperparams()
     opt_hps = OptimizerHyperparams()
     model_hps.set_from_dict(cfg)
     opt_hps.set_from_dict(cfg)
@@ -48,12 +54,14 @@ if __name__ == '__main__':
 
     # Load dataset, just used for vocab
     #dataset = BrownCorpus(model_hps.context_size, model_hps.batch_size, subset='dev')
-    dataset = CharCorpus(model_hps.context_size, model_hps.batch_size, subset='dev')
+    dataset = CharCorpus(model_hps.T, model_hps.batch_size, subset='dev')
 
     # Construct network
     #model = NPLM(dataset, model_hps, opt_hps, train=False, opt='nag')
-    model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
-    with open(pjoin(os.path.dirname(args.cfg_file), 'params.pk'), 'rb') as fin:
+    #model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
+    model = RNN(dataset, model_hps, opt_hps, train=False, opt='nag')
+    # FIXME
+    with open(pjoin(os.path.dirname(args.cfg_file), 'params_save_every.pk'), 'rb') as fin:
         model.from_file(fin)
 
     SAMPLES = 100

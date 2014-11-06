@@ -1,7 +1,8 @@
 import cython
 import numpy as np
 cimport numpy as np
-from ops import mult, rand, zeros, exp, empty, get_nl, get_nl_grad
+from ops import mult, rand, zeros, exp, empty, get_nl,\
+        get_nl_grad, softmax
 from param_utils import ParamStruct, ModelHyperparams
 from log_utils import get_logger
 from opt_utils import create_optimizer
@@ -23,7 +24,7 @@ class NPLMHyperparams(ModelHyperparams):
     def __init__(self, **entries):
         self.defaults = [
             ('embed_size', 30, 'size of word embeddings'),
-            ('context_size', 4, 'size of word context (so 4 for 5-gram)'),
+            ('T', 4, 'size of word context (so 4 for 5-gram)'),
             ('hidden_size', 50, 'size of hidden layer'),
             ('batch_size', 512, 'size of dataset batches'),
             # Not really a hyperparameter...
@@ -35,6 +36,7 @@ class NPLMHyperparams(ModelHyperparams):
 # Moved outside class so Cython + multithreading works
 
 # PARAM
+
 rand_range = [-0.1, 0.1]
 def rand_init(shape):
     return rand(shape, rand_range)
@@ -46,18 +48,11 @@ def bias_init(shape):
 class NPLM(Net):
 
     def __init__(self, dset, hps, opt_hps, train=True, opt='nag'):
-        super(NPLM, self).__init__(dset)
-        self.train = train
-        self.hps = hps
+        super(NPLM, self).__init__(dset, hps, train=train)
         self.nl = get_nl(hps.nl)
         self.vocab_size = dset.vocab_size
         self.likelihood_size = self.vocab_size
         logger.debug('Vocab size: %d' % self.vocab_size)
-
-        #self.rand_init = lambda shape: rand(shape, rand_range)
-        # PARAM Following Vaswani et al. EMNLP 2013
-        #self.bias_init = lambda shape: zeros(shape) - np.log(self.vocab_size)
-        #self.bias_init = lambda shape: zeros(shape)# - np.log(self.vocab_size) * 0.01
 
         self.alloc_params()
 
@@ -70,17 +65,13 @@ class NPLM(Net):
     def alloc_params(self):
         hps = self.hps
         self.params['C'] = rand_init((hps.embed_size, self.vocab_size))
-        self.params['H'] = rand_init((hps.hidden_size, hps.context_size*hps.embed_size))
+        self.params['H'] = rand_init((hps.hidden_size, hps.T*hps.embed_size))
         self.params['d'] = bias_init((hps.hidden_size, 1))
         self.params['U'] = rand_init((self.vocab_size, hps.hidden_size))
         self.params['b'] = bias_init((self.vocab_size, 1))
-        self.params['W'] = rand_init((self.vocab_size, hps.context_size*hps.embed_size))
+        self.params['W'] = rand_init((self.vocab_size, hps.T*hps.embed_size))
 
-        self.param_keys = sorted(self.params.keys())
-        num_params = 0.0
-        for k in self.param_keys:
-            num_params += np.prod(self.params[k].shape)
-        logger.info('Allocated %d parameters' % num_params)
+        self.count_params()
 
     def run(self, back=True):
         super(NPLM, self).run(back=back)
@@ -104,7 +95,7 @@ class NPLM(Net):
         x = empty((self.dset.feat_dim * embed_size, bsize))
 
         cdef int k, j
-        cdef int context_size = self.hps.context_size
+        cdef int context_size = self.hps.T
 
         for k in xrange(bsize):
             # NOTE Transpose to get words in order
@@ -117,8 +108,7 @@ class NPLM(Net):
         # epochs to train but may reach lower perplexity
         y = mult(p.W, x) + mult(p.U, a) + p.b
         # Softmax
-        probs = exp(y - y.max(axis=0))
-        probs = probs / probs.sum(axis=0)
+        probs = softmax(y)
 
         if labels is None:
             return None, probs
@@ -134,6 +124,7 @@ class NPLM(Net):
 
         # Backprop
 
+        # FIXME Allocate in alloc_params()
         grads = dict()
         for param in self.params:
             grads[param] = zeros(self.params[param].shape)
@@ -177,7 +168,7 @@ class NPLM(Net):
             logger.info('Grad check on %s' % p)
             param = self.params[p]
             grad = grads[p]
-            # NOTE Definitely want to use numpy at not 32 bit floats on GPU here
+            # NOTE Want to use numpy at not 32 bit floats on GPU here
             num_grad = np.empty(param.shape, dtype=np.float64)
             for i in xrange(param.shape[0]):
                 ## NOTE Transpose to get words in order

@@ -4,7 +4,8 @@ from os.path import join as pjoin
 #from brown_corpus import BrownCorpus
 from char_corpus import CharCorpus
 #from nplm import NPLM, NPLMHyperparams
-from nclm import NCLM, NCLMHyperparams
+#from nclm import NCLM, NCLMHyperparams
+from rnn import RNN, RNNHyperparams
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import dump_config, add_run_data
@@ -13,12 +14,16 @@ from gpu_utils import gnumpy_setup
 logger = get_logger()
 gnumpy_setup()
 
+# PARAM
+SAVE_PARAMS_EVERY = 5000
+
 
 def main():
     # TODO Be able to pass in different models into training script as well?
 
     #model_hps = NPLMHyperparams()
-    model_hps = NCLMHyperparams()
+    #model_hps = NCLMHyperparams()
+    model_hps = RNNHyperparams()
     opt_hps = OptimizerHyperparams()
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -39,26 +44,35 @@ def main():
 
     # Load dataset
     #dataset = BrownCorpus(args.context_size, args.batch_size)
-    dataset = CharCorpus(args.context_size, args.batch_size)
+    dataset = CharCorpus(args.T, args.batch_size)
 
     # Construct network
     #model = NPLM(dataset, model_hps, opt_hps, opt='nag')
-    model = NCLM(dataset, model_hps, opt_hps, opt='nag')
+    #model = NCLM(dataset, model_hps, opt_hps, opt='nag')
+    model = RNN(dataset, model_hps, opt_hps, opt='nag')
 
     # Run training
     for k in xrange(0, args.epochs):
         dataset.restart(shuffle=True)
+
         it = 0
         while dataset.data_left():
             model.run()
             logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1]))
             it += 1
+            if it % SAVE_PARAMS_EVERY == 0:
+                params_file = pjoin(args.out_dir, 'params_save_every.pk')
+                with open(params_file, 'wb') as fout:
+                    model.to_file(fout)
+
         # Anneal
         model.opt.alpha /= args.anneal_factor
-        # Save parameters
+
+        # Save final parameters
         params_file = pjoin(args.out_dir, 'params_epoch{0:02}.pk'.format(k+1))
         with open(params_file, 'wb') as fout:
             model.to_file(fout)
+
         # Symlink param file to latest
         sym_file = pjoin(args.out_dir, 'params.pk')
         if os.path.exists(sym_file):

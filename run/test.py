@@ -6,7 +6,8 @@ import argparse
 #from brown_corpus import BrownCorpus
 from char_corpus import CharCorpus
 #from nplm import NPLM, NPLMHyperparams
-from nclm import NCLM, NCLMHyperparams
+#from nclm import NCLM, NCLMHyperparams
+from rnn import RNN, RNNHyperparams
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import CfgStruct
@@ -34,17 +35,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cfg = load_config(args.cfg_file)
-    model_hps = NCLMHyperparams()
+    #model_hps = NCLMHyperparams()
+    model_hps = RNNHyperparams()
     opt_hps = OptimizerHyperparams()
     model_hps.set_from_dict(cfg)
     opt_hps.set_from_dict(cfg)
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    dataset = CharCorpus(model_hps.context_size, model_hps.batch_size, subset='test')
+    dataset = CharCorpus(model_hps.T, model_hps.batch_size, subset='test')
 
     # Construct network
-    model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
+    #model = NCLM(dataset, model_hps, opt_hps, train=False, opt='nag')
+    model = RNN(dataset, model_hps, opt_hps, train=False, opt='nag')
     # Load parameters
     if args.params_file:
         params_file = args.params_file
@@ -53,11 +56,11 @@ if __name__ == '__main__':
     with open(params_file, 'rb') as fin:
         model.from_file(fin)
 
-    likelihoods = np.empty((model.likelihood_size, dataset.data.shape[1]), dtype=np.float32)
+    likelihoods = np.empty((model.hps.output_size, dataset.data.shape[1]), dtype=np.float32)
     it = 0
     while dataset.data_left():
         cost, probs = model.run(back=False)
-        likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs)
+        likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs[:, -1, :])
         logger.info('iter %d, cost: %f' % (it, cost))
         it += 1
 

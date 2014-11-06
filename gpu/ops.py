@@ -31,6 +31,9 @@ def as_np(arr):
     else:
         return arr
 
+def tile(arr, reps):
+    return gnp.tile(arr, reps)
+
 def empty(shape):
     return gnp.empty(shape)
 
@@ -45,6 +48,18 @@ def zeros(shape):
 
 def ones(shape):
     return gnp.ones(shape)
+
+def vp_init(shape):
+    # Variance preserving initialization proposed in
+    # Glorot et. al. 2012
+    assert len(shape) == 2
+    a = (6.0 / (shape[0] + shape[1])) ** 0.5
+    return rand(shape, (-a, a))
+
+# Matrix multiply
+
+def mult(A, B):
+    return gnp.dot(A, B)
 
 # Nonlinearities
 
@@ -69,6 +84,12 @@ def exp(x):
     else:
         return gnp.exp(x)
 
+def log(x):
+    if USE_GPU:
+        return x.log()
+    else:
+        return gnp.log(x)
+
 def get_nl(nl):
     if nl == 'relu':
         return relu
@@ -89,8 +110,9 @@ def get_nl_grad(nl, act):
     else:
         assert False, 'No such nonlinearity: %s' % nl
 
+# Softmax
 
-# Matrix multiply
-
-def mult(A, B):
-    return gnp.dot(A, B)
+def softmax(y):
+    probs = exp(y - y.max(axis=0))
+    probs = probs / probs.sum(axis=0)
+    return probs

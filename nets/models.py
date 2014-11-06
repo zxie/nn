@@ -1,3 +1,4 @@
+import numpy as np
 import cPickle as pickle
 from log_utils import get_logger
 from ops import array, as_np
@@ -9,10 +10,12 @@ logger = get_logger()
 
 class Net(object):
 
-    def __init__(self, dset, opt='nag'):
+    def __init__(self, dset, hps, train=True):
         self.params = dict()
         self.params_loaded = False
         self.dset = dset
+        self.train = train
+        self.hps = hps
 
     def alloc_params(self):
         raise NotImplementedError()
@@ -20,8 +23,26 @@ class Net(object):
     def cost_and_grad(self):
         raise NotImplementedError()
 
-    def check_grad(self):
-        raise NotImplementedError()
+    def check_grad(self, data, labels, grads, eps=0.01, params_to_check=None):
+        if not params_to_check:
+            params_to_check = self.params.keys()
+        for p in params_to_check:
+            logger.info('Grad check on %s' % p)
+            param = self.params[p]
+            grad = grads[p]
+            # NOTE Want to use numpy at not 32 bit floats on GPU here
+            num_grad = np.empty(param.shape, dtype=np.float64)
+            for i in xrange(param.shape[0]):
+                for j in range(param.shape[1]):
+                    # NOTE Does 2-way numerical gradient
+                    param[i, j] += eps
+                    cost_p, _ = self.cost_and_grad(data, labels, back=False)
+                    param[i, j] -= 2*eps
+                    cost_m, _ = self.cost_and_grad(data, labels, back=False)
+                    param[i, j] += eps
+                    num_grad[i, j] = (cost_p - cost_m) / (2*eps)
+                    print i, j, 'ng', num_grad[i, j], 'g', grad[i, j], '/',\
+                        num_grad[i, j] / grad[i, j], '-', num_grad[i, j] - grad[i, j]
 
     def to_file(self, fout):
         logger.info('Saving state')
@@ -35,6 +56,13 @@ class Net(object):
         if self.train:
             self.opt.from_file(fin)
         self.params_loaded = True
+
+    def count_params(self):
+        self.param_keys = sorted(self.params.keys())
+        self.num_params = 0.0
+        for k in self.param_keys:
+            self.num_params += np.prod(self.params[k].shape)
+        logger.info('Allocated %d parameters' % self.num_params)
 
     def update_params(self, data, labels):
         self.opt.run(data, labels)
