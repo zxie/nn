@@ -17,6 +17,8 @@ Follows some details given in
     Vaswani et al., EMNLP 2013
 '''
 
+# NOTE If sure want to use numpy can also type numpy arrays for speed gains
+
 logger = get_logger()
 
 class NPLMHyperparams(ModelHyperparams):
@@ -61,6 +63,11 @@ class NPLM(Net):
             self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
                     mom=opt_hps.mom, mom_low=opt_hps.mom_low,
                     low_mom_iters=opt_hps.low_mom_iters)
+
+
+    @staticmethod
+    def init_hyperparams():
+        return NPLMHyperparams()
 
     def alloc_params(self):
         hps = self.hps

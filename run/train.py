@@ -3,9 +3,7 @@ import argparse
 from os.path import join as pjoin
 #from brown_corpus import BrownCorpus
 from char_corpus import CharCorpus
-#from nplm import NPLM, NPLMHyperparams
-#from nclm import NCLM, NCLMHyperparams
-from rnn import RNN, RNNHyperparams
+from model_utils import get_model_class_and_params
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import dump_config, add_run_data
@@ -16,14 +14,12 @@ gnumpy_setup()
 
 # PARAM
 SAVE_PARAMS_EVERY = 5000
-
+MODEL_TYPE = 'dnn'
 
 def main():
     # TODO Be able to pass in different models into training script as well?
 
-    #model_hps = NPLMHyperparams()
-    #model_hps = NCLMHyperparams()
-    model_hps = RNNHyperparams()
+    model_class, model_hps = get_model_class_and_params(MODEL_TYPE)
     opt_hps = OptimizerHyperparams()
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -44,12 +40,12 @@ def main():
 
     # Load dataset
     #dataset = BrownCorpus(args.context_size, args.batch_size)
-    dataset = CharCorpus(args.T, args.batch_size)
+    # FIXME Move context to param...
+    from dset_paths import SWBD_CORPUS_DATA_FILE
+    dataset = CharCorpus(16, args.batch_size, data_file=SWBD_CORPUS_DATA_FILE)
 
     # Construct network
-    #model = NPLM(dataset, model_hps, opt_hps, opt='nag')
-    #model = NCLM(dataset, model_hps, opt_hps, opt='nag')
-    model = RNN(dataset, model_hps, opt_hps, opt='nag')
+    model = model_class(dataset, model_hps, opt_hps, opt='nag')
 
     # Run training
     for k in xrange(0, args.epochs):

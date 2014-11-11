@@ -17,6 +17,10 @@ class Net(object):
         self.train = train
         self.hps = hps
 
+    @staticmethod
+    def init_hyperparams():
+        raise NotImplementedError()
+
     def alloc_params(self):
         raise NotImplementedError()
 

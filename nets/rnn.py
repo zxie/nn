@@ -1,4 +1,3 @@
-import argparse
 import numpy as np
 from optimizer import OptimizerHyperparams
 from ops import empty, zeros, get_nl, softmax, mult, tile,\
@@ -8,13 +7,15 @@ from log_utils import get_logger
 from param_utils import ModelHyperparams
 from char_corpus import CharCorpus
 from opt_utils import create_optimizer
+from dset_utils import one_hot
 
 # NOTE Theano ref: http://stackoverflow.com/questions/24431621/does-theano-do-automatic-unfolding-for-bptt
 # NOTE Currently using BPTT, there'as also RTRL, EKF
 # NOTE Switching time and batch index (d, b, t) seems to be slower than current (d, t, b)
 
+# H5 files should have attributes that allow you to automatically determine stuff...
+
 # TODO
-# - Sample / text perplexity of small trained model
 # - Gradient clipping
 # - Bi-directional (not much point if just use as LM I guess...)
 # - Deep
@@ -23,7 +24,6 @@ from opt_utils import create_optimizer
 # - Need to figure out best nonlinearities too
 
 # Maybe
-# - Make sure handling cases at start and end of sequences properly
 # - Replace h0 w/ b0
 
 logger = get_logger()
@@ -32,8 +32,8 @@ class RNNHyperparams(ModelHyperparams):
 
     def __init__(self, **entries):
         self.defaults = [
-            ('T', 11, 'how much to unroll RNN'),
-            ('hidden_size', 800, 'size of hidden layers'),  # FIXME
+            ('T', 16, 'how much to unroll RNN'),
+            ('hidden_size', 800, 'size of hidden layers'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 512, 'size of dataset batches'),
             ('nl', 'relu', 'type of nonlinearity')
@@ -41,10 +41,6 @@ class RNNHyperparams(ModelHyperparams):
         super(RNNHyperparams, self).__init__(entries)
 
 # PARAM
-
-def bias_init(shape):
-    return zeros(shape)
-
 
 class RNN(Net):
 
@@ -60,6 +56,10 @@ class RNN(Net):
                     mom=opt_hps.mom, mom_low=opt_hps.mom_low,
                     low_mom_iters=opt_hps.low_mom_iters)
 
+    @staticmethod
+    def init_hyperparams():
+        return RNNHyperparams()
+
     def alloc_params(self):
         # Refer to Ch. 2 pg. 10 of Sutskever's thesis
 
@@ -74,11 +74,11 @@ class RNN(Net):
 
         # hidden to hidden
         self.params['Whh'] = vp_init((hps.hidden_size, hps.hidden_size))
-        self.params['bhh'] = bias_init((hps.hidden_size, 1))
+        self.params['bhh'] = zeros((hps.hidden_size, 1))
 
         # hidden to output
         self.params['Who'] = vp_init((hps.output_size, hps.hidden_size))
-        self.params['bho'] = bias_init((hps.output_size, 1))
+        self.params['bho'] = zeros((hps.output_size, 1))
 
         self.count_params()
 
@@ -181,15 +181,6 @@ class RNN(Net):
         return cost, self.grads
 
 
-def one_hot(data, n):
-    data_1h = np.zeros((n, data.shape[0], data.shape[1]))
-    for t in xrange(data.shape[0]):
-        for b in xrange(data.shape[1]):
-            data_1h[data[t, b], t, b] = 1
-    #logger.info('Data shape: %s' % str(data_1h.shape))
-    return array(data_1h)
-
-
 def label_seq(data, final_labels):
     '''
     Use data and labels at final time step to build labels
@@ -203,8 +194,8 @@ def label_seq(data, final_labels):
     #logger.info('Labels shape: %s' % str(labels.shape))
     return labels
 
-
 if __name__ == '__main__':
+    import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     model_hps = RNNHyperparams()

@@ -16,7 +16,6 @@ BROWN_CORPUS_VOCAB_FILE = pjoin(DSET_PATH, 'brown_vocab.pk')
 
 #CHAR_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'char_data.h5')
 #CHAR_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'swbd_data.h5')
-CHAR_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'fsh_data.h5')
 CHAR_CORPUS_VOCAB_FILE = pjoin(DSET_PATH, 'char_vocab.pk')
 
 #SWBD_DATA_PATH = '/scail/group/deeplearning/speech/zxie/kaldi-stanford/kaldi-trunk/egs/swbd/s5b/data'
@@ -25,3 +24,6 @@ SWBD_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'swbd_data.h5')
 
 FSH_DATA_PATH = '/bak/fsh_data'
 FSH_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'fsh_data.h5')
+
+CHAR_CORPUS_DATA_FILE = FSH_CORPUS_DATA_FILE
+#CHAR_CORPUS_DATA_FILE = SWBD_CORPUS_DATA_FILE

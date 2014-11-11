@@ -12,7 +12,7 @@ Based off of preproc_words.py
 '''
 
 # FIXME PARAM
-context = 11
+context = 16
 
 
 # NOTE

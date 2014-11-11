@@ -5,7 +5,7 @@ from dset_paths import CHAR_CORPUS_DATA_FILE, CHAR_CORPUS_VOCAB_FILE
 
 class CharCorpus(Dataset):
 
-    def __init__(self, feat_dim, batch_size, subset='train'):
+    def __init__(self, feat_dim, batch_size, subset='train', data_file=CHAR_CORPUS_DATA_FILE):
         super(CharCorpus, self).__init__(feat_dim, batch_size)
         # Load vocab
         with open(CHAR_CORPUS_VOCAB_FILE, 'rb') as fin:
@@ -13,7 +13,7 @@ class CharCorpus(Dataset):
             self.vocab_size = len(self.char_inds)
         self.chars = dict((v, k) for k, v in self.char_inds.iteritems())
         # Load data matrices
-        h5f = h5py.File(CHAR_CORPUS_DATA_FILE, 'r')
+        h5f = h5py.File(data_file, 'r')
         self.subset = subset
 
         # NOTE These are all just word indices, no point

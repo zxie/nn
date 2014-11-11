@@ -8,7 +8,7 @@ from ops import array, as_np
 #from nplm import NPLM, NPLMHyperparams
 #from nclm import NCLM, NCLMHyperparams
 from rnn import RNN, RNNHyperparams
-from rnn import one_hot
+from dset_utils import one_hot
 from optimizer import OptimizerHyperparams
 from run_utils import CfgStruct
 from run_utils import load_config
@@ -67,8 +67,9 @@ if __name__ == '__main__':
     SAMPLES = 100
     SAMPLE_LENGTH = 100
     # PARAM
-    LM_ORDER = 12
     ALPHA = 1.0
+
+    LM_ORDER = model_hps.T + 1
 
     for j in range(SAMPLES):
         sample_string = ['<null>'] * (LM_ORDER - 2) + ['<s>']
