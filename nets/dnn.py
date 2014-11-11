@@ -1,6 +1,7 @@
 import numpy as np
 from log_utils import get_logger
-from ops import get_nl, vp_init, zeros, mult, empty, get_nl_grad, softmax
+from ops import get_nl, vp_init, zeros, mult, empty, get_nl_grad,\
+        softmax, as_np, array
 from models import Net
 from param_utils import ParamStruct, ModelHyperparams
 from optimizer import OptimizerHyperparams
@@ -56,6 +57,8 @@ class DNN(Net):
         self.params['Who'] = vp_init((hps.output_size, hps.hidden_size))
         self.params['bho'] = zeros((hps.output_size, 1))
 
+        self.count_params()
+
         # Allocate grads as well
 
         self.grads = {}
@@ -104,8 +107,10 @@ class DNN(Net):
 
         # NOTE For more precision if necessary convert to nparray early
         cost_array = np.empty(bsize, dtype=np.float64)
+        # Speed things up by doing assignments off gpu
+        neg_log_prob = -1 * np.log(as_np(probs))
         for k in xrange(bsize):
-            cost_array[k] = -1 * np.log(probs[labels[k], k])
+            cost_array[k] = neg_log_prob[labels[k], k]
         cost = cost_array.sum() / bsize
 
         if not back:
@@ -116,10 +121,12 @@ class DNN(Net):
         for k in self.grads:
             self.grads[k][:] = 0
 
-        dLdy = probs
+        # Do assignments off GPU to speed things up
+        dLdy = as_np(probs)
         # NOTE This changes probs
         for k in xrange(bsize):
             dLdy[labels[k], k] -= 1
+        dLdy = array(dLdy)
 
         grads['bho'] = dLdy.sum(axis=1).reshape((-1, 1))
         grads['Who'] = mult(dLdy, acts[-1].T)
