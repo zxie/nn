@@ -5,7 +5,7 @@ from ops import empty, zeros, get_nl, softmax, mult, tile,\
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
-from char_corpus import CharCorpus
+from char_corpus import CharCorpus, CONTEXT
 from opt_utils import create_optimizer
 from dset_utils import one_hot
 
@@ -32,7 +32,7 @@ class RNNHyperparams(ModelHyperparams):
 
     def __init__(self, **entries):
         self.defaults = [
-            ('T', 16, 'how much to unroll RNN'),
+            ('T', CONTEXT, 'how much to unroll RNN'),
             ('hidden_size', 800, 'size of hidden layers'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 512, 'size of dataset batches'),

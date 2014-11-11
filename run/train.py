@@ -8,6 +8,7 @@ from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import dump_config, add_run_data
 from gpu_utils import gnumpy_setup
+from char_corpus import CONTEXT
 
 logger = get_logger()
 gnumpy_setup()
@@ -40,17 +41,14 @@ def main():
 
     # Load dataset
     #dataset = BrownCorpus(args.context_size, args.batch_size)
-    # FIXME Move context to param...
-    from dset_paths import SWBD_CORPUS_DATA_FILE
-    dataset = CharCorpus(16, args.batch_size, data_file=SWBD_CORPUS_DATA_FILE)
+    # FIXME Move context and data file to param...
+    dataset = CharCorpus(CONTEXT, args.batch_size)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt='nag')
 
     # Run training
     for k in xrange(0, args.epochs):
-        dataset.restart(shuffle=True)
-
         it = 0
         while dataset.data_left():
             model.run()
@@ -74,6 +72,8 @@ def main():
         if os.path.exists(sym_file):
             os.remove(sym_file)
         os.symlink(params_file, sym_file)
+
+        dataset.restart(shuffle=True)
 
 
 if __name__ == '__main__':

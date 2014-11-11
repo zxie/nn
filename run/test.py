@@ -13,6 +13,7 @@ from gpu_utils import gnumpy_setup
 from ops import as_np
 from train import MODEL_TYPE
 from model_utils import get_model_class_and_params
+from char_corpus import CONTEXT
 
 '''
 Takes a trained model and writes the likelihoods
@@ -43,7 +44,7 @@ if __name__ == '__main__':
 
     # Load dataset
     from dset_paths import SWBD_CORPUS_DATA_FILE
-    dataset = CharCorpus(16, model_hps.batch_size, subset='test', data_file=SWBD_CORPUS_DATA_FILE)
+    dataset = CharCorpus(CONTEXT, model_hps.batch_size, subset='test')
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, train=False, opt='nag')

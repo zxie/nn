@@ -12,7 +12,7 @@ Based off of preproc_words.py
 '''
 
 # FIXME PARAM
-context = 16
+CONTEXT = 11
 
 
 # NOTE
@@ -71,10 +71,10 @@ def build_data(data_files, train_data, dev_data, test_data, char_inds):
                 line = preproc_line(line)
                 if not line:
                     continue
-                chars = ['<null>'] * (context - 1) + ['<s>'] + list(line) + ['</s>']
+                chars = ['<null>'] * (CONTEXT - 1) + ['<s>'] + list(line) + ['</s>']
                 # Begin right after start symbol, stop at end symbol inclusive
-                for k in range(context, len(chars)):
-                    c_inds = [char_inds[c] for c in chars[k-context:k+1]]
+                for k in range(CONTEXT, len(chars)):
+                    c_inds = [char_inds[c] for c in chars[k-CONTEXT:k+1]]
                     if data_ind < N_train:
                         train_data[:, data_ind] = c_inds
                     elif data_ind < N_train + N_dev:
@@ -111,9 +111,9 @@ if __name__ == '__main__':
     # Add num_sents since we add </s> to every sentence
     N_test = num_chars + num_sents - N_train - N_dev
 
-    train_data = np.empty((context + 1, N_train), dtype=np.int8)
-    dev_data = np.empty((context + 1, N_dev), dtype=np.int8)
-    test_data = np.empty((context + 1, N_test), dtype=np.int8)
+    train_data = np.empty((CONTEXT + 1, N_train), dtype=np.int8)
+    dev_data = np.empty((CONTEXT + 1, N_dev), dtype=np.int8)
+    test_data = np.empty((CONTEXT + 1, N_test), dtype=np.int8)
 
     build_data(data_files, train_data, dev_data, test_data, char_inds)
 

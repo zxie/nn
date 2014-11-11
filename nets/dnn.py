@@ -6,7 +6,7 @@ from models import Net
 from param_utils import ParamStruct, ModelHyperparams
 from optimizer import OptimizerHyperparams
 from opt_utils import create_optimizer
-from char_corpus import CharCorpus
+from char_corpus import CharCorpus, CONTEXT
 from dset_utils import one_hot
 
 logger = get_logger()
@@ -19,7 +19,7 @@ class DNNHyperparams(ModelHyperparams):
             ('hidden_size', 800, 'size of hidden layers'),
             ('hidden_layers', 2, 'number of hidden layers'),
             # TODO Determine this from dataset input
-            ('input_size', 34*16, 'input dimension size'),
+            ('input_size', 34*CONTEXT, 'input dimension size'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 512, 'size of dataset batches'),
             ('nl', 'relu', 'type of nonlinearity')
@@ -164,7 +164,6 @@ if __name__ == '__main__':
     model_hps.set_from_args(args)
     opt_hps.set_from_args(args)
 
-    CONTEXT = 16
     from dset_paths import SWBD_CORPUS_DATA_FILE
     dset = CharCorpus(CONTEXT, args.batch_size, data_file=SWBD_CORPUS_DATA_FILE)
 

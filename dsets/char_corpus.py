@@ -2,6 +2,7 @@ import h5py
 import cPickle as pickle
 from dset import Dataset
 from dset_paths import CHAR_CORPUS_DATA_FILE, CHAR_CORPUS_VOCAB_FILE
+from preproc_char import CONTEXT
 
 class CharCorpus(Dataset):
 
@@ -24,6 +25,8 @@ class CharCorpus(Dataset):
             self.data = h5f['dev'][...]
         elif subset == 'test':
             self.data = h5f['test'][...]
+
+        assert self.data.shape[0] == (CONTEXT + 1)
 
         self.labels = self.data[-1, :]
 
