@@ -16,7 +16,7 @@ class DNNHyperparams(ModelHyperparams):
     def __init__(self, **entries):
         # TODO Don't assume hidden layer sizes are the same
         self.defaults = [
-            ('hidden_size', 800, 'size of hidden layers'),
+            ('hidden_size', 1200, 'size of hidden layers'),
             ('hidden_layers', 2, 'number of hidden layers'),
             # TODO Determine this from dataset input
             ('input_size', 34*CONTEXT, 'input dimension size'),

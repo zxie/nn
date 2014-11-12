@@ -1,11 +1,13 @@
+import pickle
 import os
 from os.path import join as pjoin
 import numpy as np
 import argparse
 #from brown_corpus import BrownCorpus
-from char_corpus import CharCorpus, CONTEXT
+from char_corpus import CONTEXT
 from ops import array
 from dset_utils import one_hot
+from dset_paths import CHAR_CORPUS_VOCAB_FILE
 from model_utils import get_model_class_and_params
 from optimizer import OptimizerHyperparams
 from run_utils import CfgStruct
@@ -20,7 +22,7 @@ Sample text from NN-LM
 def sample_continuation(s, model, order, alpha=1.0):
     # Higher alpha -> more and more like most likely sequence
     #data = array([model.dset.word_inds[w] for w in s[-order+1:]]).reshape(-1, 1)
-    data = array(np.array([model.dset.char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
+    data = array(np.array([char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
     data = one_hot(data, model.hps.output_size)
     data = data.reshape((-1, data.shape[2]))
     _, probs = model.cost_and_grad(data, None)
@@ -33,7 +35,7 @@ def sample_continuation(s, model, order, alpha=1.0):
 
     w = np.random.choice(range(model.hps.output_size), p=probs)
     #word = model.dset.words[w]
-    char = model.dset.chars[w]
+    char = chars[w]
     #return word
     return char
 
@@ -57,12 +59,12 @@ if __name__ == '__main__':
     # FIXME PARAM
     LM_ORDER = CONTEXT + 1
 
-    # Load dataset, just used for vocab
-    # PARAM
-    dataset = CharCorpus(LM_ORDER - 1, model_hps.batch_size, subset='dev')
+    with open(CHAR_CORPUS_VOCAB_FILE, 'rb') as fin:
+        char_inds = pickle.load(fin)
+    chars = dict((v, k) for k, v in char_inds.iteritems())
 
     # Construct network
-    model = model_class(dataset, model_hps, opt_hps, train=False, opt='nag')
+    model = model_class(None, model_hps, opt_hps, train=False, opt='nag')
     # FIXME
     with open(pjoin(os.path.dirname(args.cfg_file), 'params_save_every.pk'), 'rb') as fin:
         model.from_file(fin)

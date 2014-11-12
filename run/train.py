@@ -2,13 +2,13 @@ import os
 import argparse
 from os.path import join as pjoin
 #from brown_corpus import BrownCorpus
-from char_corpus import CharCorpus
+#from char_corpus import CharCorpus, CONTEXT
+from char_stream import CharStream, CONTEXT
 from model_utils import get_model_class_and_params
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import dump_config, add_run_data
 from gpu_utils import gnumpy_setup
-from char_corpus import CONTEXT
 
 logger = get_logger()
 gnumpy_setup()
@@ -42,7 +42,7 @@ def main():
     # Load dataset
     #dataset = BrownCorpus(args.context_size, args.batch_size)
     # FIXME Move context and data file to param...
-    dataset = CharCorpus(CONTEXT, args.batch_size)
+    dataset = CharStream(CONTEXT, args.batch_size)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt='nag')
@@ -52,7 +52,8 @@ def main():
         it = 0
         while dataset.data_left():
             model.run()
-            logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1]))
+            if it % 100 == 0:
+                logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1]))
             it += 1
             if it % SAVE_PARAMS_EVERY == 0:
                 params_file = pjoin(args.out_dir, 'params_save_every.pk')

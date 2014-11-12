@@ -27,3 +27,6 @@ FSH_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'fsh_data.h5')
 
 CHAR_CORPUS_DATA_FILE = FSH_CORPUS_DATA_FILE
 #CHAR_CORPUS_DATA_FILE = SWBD_CORPUS_DATA_FILE
+
+#KENTEXT_FILES = '/bak/dsets_raw/kentext/files.txt'
+KENTEXT_FILES = '/bak/dsets_raw/kentext/files_test.txt'
