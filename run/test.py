@@ -3,8 +3,7 @@ from os.path import join as pjoin
 import h5py
 import numpy as np
 import argparse
-#from brown_corpus import BrownCorpus
-from char_corpus import CharCorpus
+from char_stream import CharStream, CONTEXT
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import CfgStruct
@@ -13,7 +12,6 @@ from gpu_utils import gnumpy_setup
 from ops import as_np
 from train import MODEL_TYPE
 from model_utils import get_model_class_and_params
-from char_corpus import CONTEXT
 
 '''
 Takes a trained model and writes the likelihoods
@@ -22,10 +20,12 @@ Takes a trained model and writes the likelihoods
 logger = get_logger()
 gnumpy_setup()
 
-def write_likelihoods(likelihoods, out_file):
+def write_likelihoods(likelihoods, labels, out_file):
     f = h5py.File(out_file, 'w')
     dset = f.create_dataset('likelihoods', likelihoods.shape, dtype='float32')
     dset[...] = likelihoods
+    dset = f.create_dataset('labels', labels.shape, dtype='int32')
+    dset[...] = labels
     f.close()
 
 if __name__ == '__main__':
@@ -43,8 +43,7 @@ if __name__ == '__main__':
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    from dset_paths import SWBD_CORPUS_DATA_FILE
-    dataset = CharCorpus(CONTEXT, model_hps.batch_size, subset='test')
+    dataset = CharStream(CONTEXT, model_hps.batch_size, subset='test')
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, train=False, opt='nag')
@@ -56,12 +55,18 @@ if __name__ == '__main__':
     with open(params_file, 'rb') as fin:
         model.from_file(fin)
 
-    likelihoods = np.empty((model.hps.output_size, dataset.data.shape[1]), dtype=np.float32)
+    likelihoods = None
+    labels = None
     it = 0
     while dataset.data_left():
         cost, probs = model.run(back=False)
         #likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs[:, -1, :])
-        likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs)
+        if likelihoods is None:
+            likelihoods = as_np(probs)
+            labels = as_np(model.dset.batch_labels)
+        else:
+            likelihoods = np.hstack((likelihoods, as_np(probs)))
+            labels = np.hstack((labels, as_np(model.dset.batch_labels)))
         logger.info('iter %d, cost: %f' % (it, cost))
         it += 1
 
@@ -69,4 +74,4 @@ if __name__ == '__main__':
     output_dir = pjoin(cfg.out_dir, 'likelihoods')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    write_likelihoods(likelihoods, pjoin(output_dir, 'likelihoods.h5'))
+    write_likelihoods(likelihoods, labels, pjoin(output_dir, 'likelihoods.h5'))
