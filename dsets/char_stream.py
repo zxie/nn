@@ -2,7 +2,7 @@ import random
 import numpy as np
 import cPickle as pickle
 from dset import Dataset
-from dset_paths import CHAR_CORPUS_VOCAB_FILE, KENTEXT_FILES
+from dset_paths import CHAR_CORPUS_VOCAB_FILE
 from log_utils import get_logger
 
 '''
@@ -21,7 +21,8 @@ class CharStream(Dataset):
     def __init__(self, feat_dim, batch_size, subset='train'):
         # NOTE Need to specify paths in usbclasses
         self.text_path_files = {
-                'train': KENTEXT_FILES,
+                'train': '/bak/swbd_data/train/files.txt',
+                'test': '/bak/swbd_data/test/files.txt'
         }
         self.subset = subset
         super(CharStream, self).__init__(feat_dim, batch_size)
@@ -40,6 +41,8 @@ class CharStream(Dataset):
         assert subset in self.text_path_files
         with open(self.text_path_files[subset], 'r') as f:
             self.files = f.read().strip().split('\n')
+
+        logger.info('Loading %s' % self.files[self.file_ind])
         with open(self.files[self.file_ind], 'r') as fin:
             self.lines = fin.read().splitlines()
 
@@ -73,6 +76,7 @@ class CharStream(Dataset):
             batch_left = self.batch_size if self.batch is None else self.batch_size - self.batch.shape[1]
             # FIXME Next time filter these away beforehand
             line_text = self.lines[self.line_ind].replace('\\', '')
+            #print line_text
             line_data, line_labels = self.get_data_from_line(line_text, batch_left)
 
             # If we've come to end of the line, don't break

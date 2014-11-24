@@ -17,7 +17,7 @@ from dset_utils import one_hot
 
 # TODO
 # - Gradient clipping
-# - Bi-directional (not much point if just use as LM I guess...)
+# - Bi-directional
 # - Deep
 # - Max length / unroll instead of fixed?
 # - mRNN (hopefully can just subclass and make few changes)

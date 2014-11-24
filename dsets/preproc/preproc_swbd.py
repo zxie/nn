@@ -13,13 +13,18 @@ SPECIALS_LIST = frozenset(['[vocalized-noise]', '[laughter]', '[space]', '[noise
 def process_text(text_file):
     num_chars = 0
     transcript = open(text_file, 'r').read().strip()
+    uttids = list()
     lines = transcript.split('\n')
     for k in range(len(lines)):
+        uttids.append(lines[k].split(' ')[0])
         lines[k] = ' '.join([w for w in lines[k].lower().split(' ')[1:] if w not in SPECIALS_LIST]).strip()
         lines[k] = char_filter(lines[k])
         num_chars += len(lines[k])
     with open(pjoin(os.path.dirname(text_file), 'text_cleaned'), 'w') as fout:
         fout.write('\n'.join(lines))
+    with open(pjoin(os.path.dirname(text_file), 'utt_ids'), 'w') as fout:
+        fout.write('\n'.join(uttids))
+
 
 def preproc_splits(train_text, dev_text, test_text):
     process_text(train_text)

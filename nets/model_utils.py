@@ -2,6 +2,7 @@ from rnn import RNN
 from nplm import NPLM
 from nclm import NCLM
 from dnn import DNN
+from nnjm import NNJM
 
 def get_model_class_and_params(model_type):
     model_type = model_type.lower()
@@ -13,6 +14,8 @@ def get_model_class_and_params(model_type):
         model_class = NCLM
     elif model_type == 'rnn':
         model_class = RNN
+    elif model_type == 'nnjm':
+        model_class = NNJM
     else:
         raise Exception('Invalid model type: %s' % model_type)
     return model_class, model_class.init_hyperparams()

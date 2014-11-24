@@ -15,7 +15,7 @@ gnumpy_setup()
 
 # PARAM
 SAVE_PARAMS_EVERY = 5000
-MODEL_TYPE = 'dnn'
+MODEL_TYPE = 'nnjm'
 
 def main():
     # TODO Be able to pass in different models into training script as well?
