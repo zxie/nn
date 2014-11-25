@@ -24,6 +24,15 @@ SOURCE_CONTEXT = 15
 
 logger = get_logger()
 
+def uniform_loglikes(n):
+    return log(ones((NUM_CHARS, n)) / float(NUM_CHARS))
+
+def blank_loglikes(n):
+    a = ones((NUM_CHARS, n)) * 0.1
+    a[0, :] = 0.9
+    a /= sqrt(square(a).sum(axis=0))
+    return log(a)
+
 class CTCLoader(Dataset):
 
     def __init__(self, feat_dim, batch_size, subset='train'):
@@ -58,15 +67,6 @@ class CTCLoader(Dataset):
         return self.file_ind < len(self.files) - 1\
                 or self.align_ind < len(self.utt_ids)
 
-    def uniform_loglikes(self, n):
-        return log(ones((NUM_CHARS, n)) / float(NUM_CHARS))
-
-    def blank_loglikes(self, n):
-        a = ones((NUM_CHARS, n)) * 0.1
-        a[0, :] = 0.9
-        a /= sqrt(square(a).sum(axis=0))
-        return log(a)
-
     def get_data_from_line(self, batch_left):
         utt_id = self.utt_ids[self.align_ind]
         align = self.alignments[self.align_ind]
@@ -80,12 +80,12 @@ class CTCLoader(Dataset):
                 a = align[max(self.char_ind-1, 0)]
                 llk = ll[:, a:a+SOURCE_CONTEXT]
             else:
-                llk = self.blank_loglikes(1)
+                llk = blank_loglikes(1)
 
             if llk.shape[1] < SOURCE_CONTEXT:
-                #llk = gnp.concatenate((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])), axis=1)
-                #llk = np.hstack((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])))
-                llk = np.hstack((llk, self.blank_loglikes(SOURCE_CONTEXT - llk.shape[1])))
+                #llk = gnp.concatenate((llk, uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])), axis=1)
+                #llk = np.hstack((llk, uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])))
+                llk = np.hstack((llk, blank_loglikes(SOURCE_CONTEXT - llk.shape[1])))
 
             data[:, k] = llk.ravel()
             self.char_ind += 1
