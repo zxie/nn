@@ -25,12 +25,13 @@ SOURCE_CONTEXT = 15
 logger = get_logger()
 
 def uniform_loglikes(n):
-    return log(ones((NUM_CHARS, n)) / float(NUM_CHARS))
+    return log(ones((NUM_CHARS*SOURCE_CONTEXT, n)) / float(NUM_CHARS))
 
 def blank_loglikes(n):
-    a = ones((NUM_CHARS, n)) * 0.1
-    a[0, :] = 0.9
-    a /= sqrt(square(a).sum(axis=0))
+    # FIXME
+    a = ones((NUM_CHARS*SOURCE_CONTEXT, n)) * 1e-10
+    for k in xrange(SOURCE_CONTEXT):
+        a[NUM_CHARS*k, :] = 1.0
     return log(a)
 
 class CTCLoader(Dataset):
