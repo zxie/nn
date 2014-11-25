@@ -74,8 +74,8 @@ def main():
             os.remove(sym_file)
         os.symlink(params_file, sym_file)
 
-        dataset.restart(shuffle=True)
-
+        if k != args.epochs - 1:
+            model.start_next_epoch()
 
 if __name__ == '__main__':
     main()

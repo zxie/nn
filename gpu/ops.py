@@ -84,6 +84,18 @@ def exp(x):
     else:
         return gnp.exp(x)
 
+def square(x):
+    if USE_GPU:
+        return x.square()
+    else:
+        return gnp.square(x)
+
+def sqrt(x):
+    if USE_GPU:
+        return x.sqrt()
+    else:
+        return gnp.sqrt(x)
+
 def log(x):
     if USE_GPU:
         return x.log()

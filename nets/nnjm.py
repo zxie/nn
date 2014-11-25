@@ -165,6 +165,10 @@ class NNJM(Net):
 
         return cost, self.grads
 
+    def start_next_epoch(self):
+        self.dset.restart(shuffle=True)
+        self.ctc_loader.restart(shuffle=True)
+
 
 if __name__ == '__main__':
     import argparse

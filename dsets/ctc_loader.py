@@ -4,9 +4,9 @@ from os.path import join as pjoin
 from dset import Dataset
 from dset_paths import SWBD_DATA_PATH, DSET_PATH
 from log_utils import get_logger
-from ops import ones, log, empty, exp, zeros
+from ops import ones, log, empty, exp, zeros, square, sqrt
 import multiprocessing
-import gnumpy as gnp
+#import gnumpy as gnp
 
 '''
 Very specific class which given alignments and set of ctc
@@ -20,7 +20,7 @@ SWBD_TRAIN_ALIGN_FILE = pjoin(SWBD_DATA_PATH, 'align.pk')
 
 # PARAM
 NUM_CHARS = 35  # NOTE This includes blank
-SOURCE_CONTEXT = 1
+SOURCE_CONTEXT = 15
 
 logger = get_logger()
 
@@ -62,11 +62,12 @@ class CTCLoader(Dataset):
         return log(ones((NUM_CHARS, n)) / float(NUM_CHARS))
 
     def blank_loglikes(self, n):
-        a = zeros((NUM_CHARS, n))
-        a[0, :] = 1.0
+        a = ones((NUM_CHARS, n)) * 0.1
+        a[0, :] = 0.9
+        a /= sqrt(square(a).sum(axis=0))
         return log(a)
 
-    def get_data_from_line(self, line_ind, batch_left):
+    def get_data_from_line(self, batch_left):
         utt_id = self.utt_ids[self.align_ind]
         align = self.alignments[self.align_ind]
         ll = self.likelihoods[utt_id]
@@ -75,17 +76,17 @@ class CTCLoader(Dataset):
         N = min(len(align) + 1, batch_left)
         data = empty((self.feat_dim, N))
         for k in xrange(0, N):
-            if self.char_ind < len(align) - 1:
-                a = align[self.char_ind]
+            if len(align) > 0:
+                a = align[max(self.char_ind-1, 0)]
                 llk = ll[:, a:a+SOURCE_CONTEXT]
-                if llk.shape[1] < SOURCE_CONTEXT:
-                    #llk = gnp.concatenate((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])), axis=1)
-                    #llk = np.hstack((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])))
-                    llk = np.hstack((llk, self.blank_loglikes(SOURCE_CONTEXT - llk.shape[1])))
-
             else:
-                #llk = self.uniform_loglikes(SOURCE_CONTEXT)
-                llk = self.blank_loglikes(SOURCE_CONTEXT)
+                llk = self.blank_loglikes(1)
+
+            if llk.shape[1] < SOURCE_CONTEXT:
+                #llk = gnp.concatenate((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])), axis=1)
+                #llk = np.hstack((llk, self.uniform_loglikes(SOURCE_CONTEXT - llk.shape[1])))
+                llk = np.hstack((llk, self.blank_loglikes(SOURCE_CONTEXT - llk.shape[1])))
+
             data[:, k] = llk.ravel()
             self.char_ind += 1
 
@@ -95,7 +96,7 @@ class CTCLoader(Dataset):
         self.batch = None
         while self.batch is None or self.batch.shape[1] < self.batch_size:
             batch_left = self.batch_size if self.batch is None else self.batch_size - self.batch.shape[1]
-            line_data = self.get_data_from_line(self.line_ind, batch_left)
+            line_data = self.get_data_from_line(batch_left)
 
             # If we've come to end of the line, don't break
             if self.batch is not None and self.batch.shape[1] >= self.batch_size\

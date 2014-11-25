@@ -74,3 +74,6 @@ class Net(object):
     def run(self, back=True):
         if not back and not self.params_loaded:
             logger.warn('Running testing without having loaded parameters')
+
+    def start_next_epoch(self):
+        self.dset.restart(shuffle=True)
