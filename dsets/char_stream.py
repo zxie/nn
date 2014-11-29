@@ -4,6 +4,7 @@ import cPickle as pickle
 from dset import Dataset
 from dset_paths import CHAR_CORPUS_VOCAB_FILE
 from log_utils import get_logger
+from preproc_char import CONTEXT
 
 '''
 For large datasets, can't save the data arrays,
@@ -12,20 +13,18 @@ need to allocate on the fly
 
 logger = get_logger()
 
-# FIXME PARAM
-CONTEXT = 19
-
-# TODO Take a look at dataLoader
-
 class CharStream(Dataset):
-    def __init__(self, feat_dim, batch_size, subset='train'):
-        # NOTE Need to specify paths in usbclasses
+
+    def __init__(self, feat_dim, batch_size, step=1, subset='train'):
+        super(CharStream, self).__init__(feat_dim, batch_size)
+
+        # NOTE Need to specify paths in subclasses
         self.text_path_files = {
                 'train': '/bak/swbd_data/train/files.txt',
                 'test': '/bak/swbd_data/test/files.txt'
         }
         self.subset = subset
-        super(CharStream, self).__init__(feat_dim, batch_size)
+        self.step = step
 
         # Load vocab
         with open(CHAR_CORPUS_VOCAB_FILE, 'rb') as fin:
@@ -54,17 +53,19 @@ class CharStream(Dataset):
     # and text has been lower-cased and stripped
     def get_data_from_line(self, line, batch_left):
         # + 1 since add </s>
-        N = min(len(line) - self.char_ind + 1, batch_left)
+        N = min(len(line) - self.char_ind + 1, batch_left * self.step)
         line = ['<null>'] * (CONTEXT - 1) + ['<s>'] + list(line) + ['</s>']
-        data = np.empty((CONTEXT, N), dtype=np.int32)
-        labels = np.empty(N, dtype=np.int32)
-        for k in xrange(0, N):
-            if k > 0:
+        data = np.empty((CONTEXT, N/self.step), dtype=np.int32)
+        labels = np.empty(N/self.step, dtype=np.int32)
+        for k in xrange(0, N-(N % self.step), self.step):
+            #print k, self.step
+            j = k / self.step
+            if k > 0 and self.step == 1:
                 data[:-1, k] = data[1:, k-1]
                 data[-1, k] = labels[k-1]
             else:
-                data[:, k] = [self.char_inds[c] for c in line[k:k+CONTEXT]]
-            labels[k] = self.char_inds[line[k+CONTEXT]]
+                data[:, j] = [self.char_inds[c] for c in line[k:k+CONTEXT]]
+            labels[j] = self.char_inds[line[k+CONTEXT]]
             self.char_ind += 1
 
         return data, labels

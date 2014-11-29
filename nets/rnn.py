@@ -1,11 +1,11 @@
 import numpy as np
 from optimizer import OptimizerHyperparams
 from ops import empty, zeros, get_nl, softmax, mult, tile,\
-        get_nl_grad, as_np, array, log, vp_init
+        get_nl_grad, as_np, array, log, vp_init, l2norm, rand
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
-from char_corpus import CharCorpus, CONTEXT
+from char_stream import CharStream, CONTEXT
 from opt_utils import create_optimizer
 from dset_utils import one_hot
 
@@ -67,13 +67,15 @@ class RNN(Net):
 
         # initial hidden state
         # TODO better ways to initialize?
+        #self.params['h0'] = rand((hps.hidden_size, 1), rg=[-0.001, 0.001])
         self.params['h0'] = zeros((hps.hidden_size, 1))
 
         # input to hidden, note bias in hidden to hidden
         self.params['Wih'] = vp_init((hps.hidden_size, hps.output_size))
 
         # hidden to hidden
-        self.params['Whh'] = vp_init((hps.hidden_size, hps.hidden_size))
+        # NOTE Initialization important for grad check, don't use vp_init
+        self.params['Whh'] = rand((hps.hidden_size, hps.hidden_size), rg=[-0.001, 0.001])
         self.params['bhh'] = zeros((hps.hidden_size, 1))
 
         # hidden to output
@@ -89,21 +91,23 @@ class RNN(Net):
             self.grads[k] = empty(self.params[k].shape)
         logger.info('Allocated gradients')
 
-    def run(self, back=True):
+    def run(self, back=True, check_grad=False):
         super(RNN, self).run(back=back)
 
         data, labels = self.dset.get_batch()
         labels = label_seq(data, labels)
         data = one_hot(data, self.hps.output_size)
-        #cost, grads = self.cost_and_grad(data, labels)
-        #self.check_grad(data, labels, grads, params_to_check=['bhh'])
+
+        if check_grad:
+            cost, grads = self.cost_and_grad(data, labels)
+            self.check_grad(data, labels, grads, params_to_check=['Wih'], eps=0.01)
+
         if back:
             self.update_params(data, labels)
         else:
             cost, probs = self.cost_and_grad(data, labels, back=False)
             return cost, probs
 
-    #@profile
     def cost_and_grad(self, data, labels, back=True):
         hps = self.hps
         T = hps.T
@@ -126,7 +130,6 @@ class RNN(Net):
         hs = empty((hps.hidden_size, T, bsize))
         dhs = zeros((hps.hidden_size, T, bsize))
         probs = empty((hps.output_size, T, bsize))
-        dprobs = empty((hps.output_size, T, bsize))
         costs = np.empty((T, bsize))
 
         # Forward prop
@@ -167,7 +170,7 @@ class RNN(Net):
             self.grads['Who'] += mult(dprobs[:, t, :], hs[:, t, :].T) / bsize
             dhs[:, t, :] += mult(Who.T, dprobs[:, t, :])
             dus[:, t, :] += get_nl_grad(self.hps.nl, us[:, t, :]) * dhs[:, t, :]
-            self.grads['Wih'] += mult(dus[:, t, :], data[:, t, ].T) / bsize
+            self.grads['Wih'] += mult(dus[:, t, :], data[:, t, :].T) / bsize
             self.grads['bhh'] += dus[:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
             if t == 0:
                 hprev = h0
@@ -208,8 +211,8 @@ if __name__ == '__main__':
     model_hps.set_from_args(args)
     opt_hps.set_from_args(args)
 
-    dset = CharCorpus(args.T, args.batch_size)
+    dset = CharStream(CONTEXT, args.batch_size)
 
     # Construct network
     model = RNN(dset, model_hps, opt_hps, opt='nag')
-    model.run()
+    model.run(check_grad=True)

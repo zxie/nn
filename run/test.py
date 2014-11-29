@@ -60,7 +60,8 @@ if __name__ == '__main__':
     it = 0
     while dataset.data_left():
         cost, probs = model.run(back=False)
-        #likelihoods[:, it*dataset.batch_size:(it+1)*dataset.batch_size] = as_np(probs[:, -1, :])
+        if MODEL_TYPE == 'rnn':
+            probs = probs[:, -1, :]
         if likelihoods is None:
             likelihoods = as_np(probs)
             labels = as_np(model.dset.batch_labels)

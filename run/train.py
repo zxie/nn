@@ -15,7 +15,8 @@ gnumpy_setup()
 
 # PARAM
 SAVE_PARAMS_EVERY = 5000
-MODEL_TYPE = 'nnjm'
+MODEL_TYPE = 'rnn'
+#MODEL_TYPE = 'dnn'
 
 def main():
     # TODO Be able to pass in different models into training script as well?
@@ -42,7 +43,7 @@ def main():
     # Load dataset
     #dataset = BrownCorpus(args.context_size, args.batch_size)
     # FIXME Move context and data file to param...
-    dataset = CharStream(CONTEXT, args.batch_size)
+    dataset = CharStream(CONTEXT, args.batch_size, step=1)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt='nag')

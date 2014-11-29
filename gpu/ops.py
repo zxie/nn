@@ -57,7 +57,6 @@ def vp_init(shape):
     return rand(shape, (-a, a))
 
 # Matrix multiply
-
 def mult(A, B):
     return gnp.dot(A, B)
 
@@ -102,6 +101,12 @@ def log(x):
     else:
         return gnp.log(x)
 
+def l2norm(A):
+    if USE_GPU:
+        return A.euclid_norm()
+    else:
+        return gnp.linalg.norm(A)
+
 def get_nl(nl):
     if nl == 'relu':
         return relu
@@ -123,7 +128,6 @@ def get_nl_grad(nl, act):
         assert False, 'No such nonlinearity: %s' % nl
 
 # Softmax
-
 def softmax(y):
     probs = exp(y - y.max(axis=0))
     probs = probs / probs.sum(axis=0)

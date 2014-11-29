@@ -4,8 +4,8 @@ from os.path import join as pjoin
 import numpy as np
 import argparse
 #from brown_corpus import BrownCorpus
-from char_corpus import CONTEXT
-from ops import array
+from preproc_char import CONTEXT
+from ops import array, as_np
 from dset_utils import one_hot
 from dset_paths import CHAR_CORPUS_VOCAB_FILE
 from model_utils import get_model_class_and_params
@@ -20,23 +20,21 @@ Sample text from NN-LM
 
 
 def sample_continuation(s, model, order, alpha=1.0):
-    # Higher alpha -> more and more like most likely sequence
-    #data = array([model.dset.word_inds[w] for w in s[-order+1:]]).reshape(-1, 1)
     data = array(np.array([char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
     data = one_hot(data, model.hps.output_size)
-    data = data.reshape((-1, data.shape[2]))
+    if MODEL_TYPE != 'rnn':
+        data = data.reshape((-1, data.shape[2]))
     _, probs = model.cost_and_grad(data, None)
-    #print probs.shape
-    #probs = np.squeeze(as_np(probs))[:, -1]
+    if MODEL_TYPE == 'rnn':
+        probs = np.squeeze(as_np(probs))[:, -1]
     probs = probs.ravel()
 
+    # Higher alpha -> more and more like most likely sequence
     probs = probs ** alpha
     probs = probs / sum(probs)
 
     w = np.random.choice(range(model.hps.output_size), p=probs)
-    #word = model.dset.words[w]
     char = chars[w]
-    #return word
     return char
 
 
