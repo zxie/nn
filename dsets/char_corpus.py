@@ -1,4 +1,3 @@
-import h5py
 import cPickle as pickle
 from dset import Dataset
 from dset_paths import CHAR_CORPUS_DATA_FILE, CHAR_CORPUS_VOCAB_FILE
@@ -14,6 +13,7 @@ class CharCorpus(Dataset):
             self.vocab_size = len(self.char_inds)
         self.chars = dict((v, k) for k, v in self.char_inds.iteritems())
         # Load data matrices
+        import h5py
         h5f = h5py.File(data_file, 'r')
         self.subset = subset
 

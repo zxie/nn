@@ -1,4 +1,3 @@
-import h5py
 import cPickle as pickle
 import re
 import numpy as np
@@ -124,6 +123,7 @@ if __name__ == '__main__':
     np.random.shuffle(dev_data.T)
     np.random.shuffle(test_data.T)
 
+    import h5py
     f = h5py.File(CHAR_CORPUS_DATA_FILE, 'w')
     dset = f.create_dataset('train', train_data.shape, dtype='i8')
     dset[...] = train_data

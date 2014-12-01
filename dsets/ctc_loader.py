@@ -36,9 +36,14 @@ def blank_loglikes(n):
 class CTCLoader(Dataset):
 
     def __init__(self, feat_dim, batch_size, subset='train'):
+
+        if subset != 'train':
+            return
+
+        super(CTCLoader, self).__init__(feat_dim, batch_size)
+
         with open(SWBD_TRAIN_ALIGN_FILE, 'rb') as fin:
             self.alignments = pickle.load(fin)
-        super(CTCLoader, self).__init__(feat_dim, batch_size)
 
         # Keep track of where we are
         self.file_ind = 0
