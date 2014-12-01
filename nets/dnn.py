@@ -34,6 +34,7 @@ class DNN(Net):
         self.nl = get_nl(hps.nl)
 
         self.alloc_params()
+        self.alloc_grads()
 
         if train:
             self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
@@ -58,13 +59,6 @@ class DNN(Net):
         self.params['bho'] = zeros((hps.output_size, 1))
 
         self.count_params()
-
-        # Allocate grads as well
-
-        self.grads = {}
-        for k in self.params:
-            self.grads[k] = empty(self.params[k].shape)
-        logger.info('Allocated gradients')
 
     def run(self, back=True):
         super(DNN, self).run(back=back)

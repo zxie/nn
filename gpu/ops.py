@@ -101,6 +101,12 @@ def log(x):
     else:
         return gnp.log(x)
 
+def mean(x, axis=None):
+    if USE_GPU:
+        return x.mean(axis=axis)
+    else:
+        return gnp.mean(x, axis=axis)
+
 def l2norm(A):
     if USE_GPU:
         return A.euclid_norm()

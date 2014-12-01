@@ -1,20 +1,23 @@
 import cPickle as pickle
-from ops import array, zeros, as_np
+from ops import array, zeros, as_np, l2norm
 from optimizer import Optimizer
+from log_utils import get_logger
 
 '''
 SGD w/ classical momentum
 '''
 
+logger = get_logger()
 
 class MomentumOptimizer(Optimizer):
 
-    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100):
+    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None):
         super(MomentumOptimizer, self).__init__(model, alpha)
         # Momentum coefficient
         self.mom = mom
         self.mom_low = mom_low
         self.low_mom_iters = low_mom_iters
+        self.max_grad = max_grad
 
         # Velocities
         self.vel = dict()
@@ -33,12 +36,28 @@ class MomentumOptimizer(Optimizer):
             mom = self.mom
         return mom
 
+    def clip_grads(self, grads):
+        # Gradient clipping
+        tot_norm = 0.0
+        for p in grads:
+            tot_norm += l2norm(grads[p]) ** 2
+        if tot_norm > self.max_grad:
+            logger.info('Clipping gradient from %f to %f' % (tot_norm, self.max_grad))
+            return self.alpha / tot_norm
+        return self.alpha
+
     def compute_update(self, data, labels):
         mom = self.get_mom()
         cost, grads = self.model.cost_and_grad(data, labels)
+
+        if self.max_grad is not None:
+            alph = self.clip_grads(grads)
+        else:
+            alph = self.alpha
+
         self.update_costs(cost)
         for p in grads:
-            self.vel[p] = mom * self.vel[p] + self.alpha * grads[p]
+            self.vel[p] = mom * self.vel[p] + alph * grads[p]
 
     def update_costs(self, cost):
         self.costs.append(cost)

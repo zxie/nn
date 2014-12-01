@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 import argparse
 from char_stream import CharStream, CONTEXT
+from utt_char_stream import UttCharStream
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
 from run_utils import CfgStruct
@@ -43,7 +44,10 @@ if __name__ == '__main__':
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    dataset = CharStream(CONTEXT, model_hps.batch_size, subset='test')
+    if MODEL_TYPE != 'rnn':
+        dataset = CharStream(CONTEXT, model_hps.batch_size, subset='test')
+    else:
+        dataset = UttCharStream(model_hps.batch_size, subset='test')
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, train=False, opt='nag')
@@ -60,14 +64,29 @@ if __name__ == '__main__':
     it = 0
     while dataset.data_left():
         cost, probs = model.run(back=False)
+
         if MODEL_TYPE == 'rnn':
-            probs = probs[:, -1, :]
-        if likelihoods is None:
-            likelihoods = as_np(probs)
-            labels = as_np(model.dset.batch_labels)
+            llt = as_np(probs)
+
+            # Deal with sequences in batch being of different lengths
+            ll = llt[:, 0:len(model.dset.batch_labels[0]), 0].reshape((llt.shape[0], -1))
+            j = 1
+            for sl in model.dset.batch_labels[1:]:
+                ll = np.hstack((ll, llt[:, 0:len(sl), j].reshape(llt.shape[0], -1)))
+                j += 1
+
+            y = np.array([i for sl in model.dset.batch_labels for i in sl])
         else:
-            likelihoods = np.hstack((likelihoods, as_np(probs)))
-            labels = np.hstack((labels, as_np(model.dset.batch_labels)))
+            ll = as_np(probs)
+            y = as_np(model.dset.batch_labels)
+
+        if likelihoods is None:
+            likelihoods = ll
+            labels = y
+        else:
+            likelihoods = np.hstack((likelihoods, ll))
+            labels = np.hstack((labels, y))
+
         logger.info('iter %d, cost: %f' % (it, cost))
         it += 1
 

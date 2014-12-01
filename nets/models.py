@@ -1,7 +1,7 @@
 import numpy as np
 import cPickle as pickle
 from log_utils import get_logger
-from ops import array, as_np
+from ops import array, as_np, empty
 
 # TODO Try and implement standard DNN, RNN, CNN models which
 # other models can extend
@@ -31,9 +31,9 @@ class Net(object):
         if not params_to_check:
             params_to_check = self.params.keys()
         for p in params_to_check:
-            logger.info('Grad check on %s' % p)
             param = self.params[p]
             grad = grads[p]
+            logger.info('Grad check on %s: %s' % (p, str(grad.shape)))
             # NOTE Want to use numpy at not 32 bit floats on GPU here
             num_grad = np.empty(param.shape, dtype=np.float64)
             for i in xrange(param.shape[0]):
@@ -67,6 +67,13 @@ class Net(object):
         for k in self.param_keys:
             self.num_params += np.prod(self.params[k].shape)
         logger.info('Allocated %d parameters' % self.num_params)
+
+    def alloc_grads(self):
+        # Call after allocating parameters
+        self.grads = {}
+        for k in self.params:
+            self.grads[k] = empty(self.params[k].shape)
+        logger.info('Allocated gradients')
 
     def update_params(self, data, labels):
         self.opt.run(data, labels)

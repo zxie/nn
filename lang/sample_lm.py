@@ -20,13 +20,18 @@ Sample text from NN-LM
 
 
 def sample_continuation(s, model, order, alpha=1.0):
-    data = array(np.array([char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
-    data = one_hot(data, model.hps.output_size)
-    if MODEL_TYPE != 'rnn':
-        data = data.reshape((-1, data.shape[2]))
-    _, probs = model.cost_and_grad(data, None)
     if MODEL_TYPE == 'rnn':
-        probs = np.squeeze(as_np(probs))[:, -1]
+        data = array(np.array([char_inds[w] for w in s[-1:]])).reshape(-1, 1)
+    else:
+        data = array(np.array([char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
+
+    data = one_hot(data, model.hps.output_size)
+    if MODEL_TYPE == 'rnn':
+        _, probs = model.cost_and_grad(data, None, prev_h0=model.last_h)
+        probs = np.squeeze(as_np(probs))
+    else:
+        data = data.reshape((-1, data.shape[2]))
+        _, probs = model.cost_and_grad(data, None)
     probs = probs.ravel()
 
     # Higher alpha -> more and more like most likely sequence
@@ -35,6 +40,7 @@ def sample_continuation(s, model, order, alpha=1.0):
 
     w = np.random.choice(range(model.hps.output_size), p=probs)
     char = chars[w]
+
     return char
 
 
@@ -68,7 +74,11 @@ if __name__ == '__main__':
         model.from_file(fin)
 
     for j in range(SAMPLES):
-        sample_string = ['<null>'] * (LM_ORDER - 2) + ['<s>']
+        model.last_h = None
+        if MODEL_TYPE != 'rnn':
+            sample_string = ['<null>'] * (LM_ORDER - 2) + ['<s>']
+        else:
+            sample_string = ['<s>']
         for k in range(SAMPLE_LENGTH):
             sample_string = sample_string +\
                 [sample_continuation(sample_string, model, LM_ORDER, alpha=ALPHA)]
@@ -77,4 +87,7 @@ if __name__ == '__main__':
                 break
 
         #print ' '.join(sample_string[LM_ORDER - 2:])
-        print ''.join(sample_string[LM_ORDER - 2:])
+        if MODEL_TYPE != 'rnn':
+            print ''.join(sample_string[LM_ORDER - 2:])
+        else:
+            print ''.join(sample_string)
