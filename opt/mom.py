@@ -18,6 +18,7 @@ class MomentumOptimizer(Optimizer):
         self.mom_low = mom_low
         self.low_mom_iters = low_mom_iters
         self.max_grad = max_grad
+        self.grad_norm = 0.0
 
         # Velocities
         self.vel = dict()
@@ -29,6 +30,9 @@ class MomentumOptimizer(Optimizer):
         self.costs = list()
         self.expcosts = list()
 
+        # Also keep track of grads
+        self.grads = list()
+
     def get_mom(self):
         if self.iters < self.low_mom_iters:
             mom = self.mom_low
@@ -38,12 +42,13 @@ class MomentumOptimizer(Optimizer):
 
     def clip_grads(self, grads):
         # Gradient clipping
-        tot_norm = 0.0
+        self.grad_norm = 0.0
         for p in grads:
-            tot_norm += l2norm(grads[p]) ** 2
-        if tot_norm > self.max_grad:
-            logger.info('Clipping gradient from %f to %f' % (tot_norm, self.max_grad))
-            return self.alpha / tot_norm
+            self.grad_norm += l2norm(grads[p]) ** 2
+        self.grad_norm = self.grad_norm ** 0.5
+        if self.grad_norm > self.max_grad:
+            logger.info('Clipping gradient by %f / %f' % (self.max_grad, self.grad_norm))
+            return self.alpha * (self.max_grad / self.grad_norm)
         return self.alpha
 
     def compute_update(self, data, labels):

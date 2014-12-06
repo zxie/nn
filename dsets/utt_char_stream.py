@@ -1,3 +1,4 @@
+import numpy as np
 import random
 import cPickle as pickle
 from char_stream import CharStream
@@ -7,6 +8,8 @@ from dset_paths import CHAR_CORPUS_VOCAB_FILE
 logger = get_logger()
 random.seed(19)
 
+# # NOTE Pad at least this much to give the RNN flexibility
+MIN_UTT_LENGTH = 5
 MAX_UTT_LENGTH = 300
 
 class UttCharStream(CharStream):
@@ -58,10 +61,11 @@ class UttCharStream(CharStream):
             self.lines.extend(lines_tmp[len(batch_inds)*self.batch_size:])
 
     def get_data_from_line(self, line):
-        data = [self.char_inds['<s>']] +\
-               [self.char_inds[c] for c in line]
-        labels = [self.char_inds[c] for c in line] +\
-                 [self.char_inds['</s>']]
+        # NOTE Removing whitespace
+        line = line.strip()
+        line_chars =  [self.char_inds[c] for c in line]
+        data = [self.char_inds['<null>']] * MIN_UTT_LENGTH + [self.char_inds['<s>']] +  line_chars
+        labels = data[1:] + [self.char_inds['</s>']]
         return data, labels
 
     def get_batch(self):
@@ -95,7 +99,7 @@ class UttCharStream(CharStream):
     def load_file(self, f):
         with open(f, 'r') as fin:
             self.lines = fin.read().splitlines()
-            self.lines = [l for l in self.lines if len(l) < MAX_UTT_LENGTH]
+            self.lines = [l.strip() for l in self.lines if len(l) < MAX_UTT_LENGTH]
             self.sort_and_shuffle_lines()
 
     def restart(self, shuffle=True):

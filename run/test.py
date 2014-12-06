@@ -56,6 +56,7 @@ if __name__ == '__main__':
         params_file = args.params_file
     else:
         params_file = pjoin(os.path.dirname(args.cfg_file), 'params.pk')
+    logger.info('Loading params from %s' % params_file)
     with open(params_file, 'rb') as fin:
         model.from_file(fin)
 

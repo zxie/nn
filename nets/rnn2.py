@@ -6,7 +6,7 @@ from ops import empty, zeros, get_nl, softmax, mult, tile,\
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
-from utt_char_stream import UttCharStream, MAX_UTT_LENGTH
+from utt_char_stream import UttCharStream, MAX_UTT_LENGTH, MIN_UTT_LENGTH
 from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
 
@@ -30,7 +30,8 @@ class RNNHyperparams(ModelHyperparams):
             ('hidden_size', 2200, 'size of hidden layers'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 128, 'size of dataset batches'),
-            ('max_grad', 1000.0, 'threshold to perform gradient clipping'),
+            ('max_grad', 100.0, 'threshold to perform gradient clipping'),
+            ('max_act', 10.0, 'threshold to clip activation'),
             ('nl', 'relu', 'type of nonlinearity')
         ]
         super(RNNHyperparams, self).__init__(entries)
@@ -63,18 +64,16 @@ class RNN(Net):
 
         hps = self.hps
 
-        # initial hidden state
-        # TODO better ways to initialize?
-        self.params['h0'] = rand((hps.hidden_size, 1), rg=[-INIT_EPS, INIT_EPS])
-        #self.params['h0'] = zeros((hps.hidden_size, 1))
+        # Initial hidden state
+        self.params['h0'] = zeros((hps.hidden_size, 1))
 
         # input to hidden, note bias in hidden to hidden
         self.params['Wih'] = vp_init((hps.hidden_size, hps.output_size))
 
         # hidden to hidden
-        # NOTE Initialization important for grad check, don't use vp_init
-        #self.params['Whh'] = vp_init((hps.hidden_size, hps.hidden_size))
-        self.params['Whh'] = rand((hps.hidden_size, hps.hidden_size), rg=[-INIT_EPS, INIT_EPS])
+        # NOTE Initialization important for grad check, don't use vp_init?
+        self.params['Whh'] = vp_init((hps.hidden_size, hps.hidden_size))
+        #self.params['Whh'] = rand((hps.hidden_size, hps.hidden_size), rg=[-INIT_EPS, INIT_EPS])
         self.params['bhh'] = zeros((hps.hidden_size, 1))
 
         # hidden to output
@@ -96,7 +95,7 @@ class RNN(Net):
 
         if check_grad:
             cost, grads = self.cost_and_grad(data, labels)
-            self.check_grad(data, labels, grads, params_to_check=['h0'], eps=0.01)
+            self.check_grad(data, labels, grads, params_to_check=['Whh'], eps=0.01)
 
         if back:
             self.update_params(data, labels)
@@ -107,10 +106,9 @@ class RNN(Net):
     def cost_and_grad(self, data, labels, back=True, prev_h0=None):
         hps = self.hps
         T = data.shape[1]
-        #logger.info('T: %d' % T)
-        # May not be full batch size if at end of dataset
         bsize = data.shape[2]
 
+        # FIXME gnumpy reallocates if try and use same parameters?
         #us = self.us[:, 0:T, 0:bsize]
         #dus = self.dus[:, 0:T, 0:bsize]
         #hs = self.hs[:, 0:T, 0:bsize]
@@ -142,7 +140,10 @@ class RNN(Net):
                 hprev = h0
             else:
                 hprev = hs[:, t-1, :]
+            # Clip maximum activation
             us[:, t, :] = mult(Wih, data[:, t, :]) + mult(Whh, hprev) + bhh
+            mask = us[:, t, :] < hps.max_act
+            us[:, t, :] = us[:, t, :] * mask + hps.max_act * (1 - mask)
             hs[:, t, :] = self.nl(us[:, t, :])
             probs[:, t, :] = softmax(mult(Who, hs[:, t, :]) + bho)
 
@@ -162,7 +163,8 @@ class RNN(Net):
         # NOTE Summing costs over time
         # NOTE FIXME Dividing by T to get better sense if objective
         # is decreasing, remove for grad checking
-        cost = costs.sum() / bsize / float(T)
+        #cost = costs.sum() / bsize / float(T)
+        cost = (costs.sum() - costs[0:MIN_UTT_LENGTH, :].sum()) / bsize / float(T-MIN_UTT_LENGTH)
         if not back:
             return cost, probs
 
