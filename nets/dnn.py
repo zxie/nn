@@ -37,9 +37,7 @@ class DNN(Net):
         self.alloc_grads()
 
         if train:
-            self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
-                    mom=opt_hps.mom, mom_low=opt_hps.mom_low,
-                    low_mom_iters=opt_hps.low_mom_iters)
+            self.opt = create_optimizer(opt, self, **(opt_hps.to_dict()))
 
     @staticmethod
     def init_hyperparams():

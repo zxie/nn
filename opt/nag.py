@@ -1,4 +1,3 @@
-from ops import l2norm
 from mom import MomentumOptimizer
 
 # TODO Slowly increasing momentum schedule described in
@@ -17,8 +16,10 @@ class NesterovOptimizer(MomentumOptimizer):
             self.params[p] = self.params[p] - mom*self.vel[p]
         _, grads = self.model.cost_and_grad(data, labels)
 
+        self.rmsprop_update(grads)
+
         # Gradient clipping
-        if self.max_grad is not None:
+        if self.max_grad is not None and self.max_grad > 0:
             alph = self.clip_grads(grads)
         else:
             alph = self.alpha

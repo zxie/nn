@@ -33,6 +33,13 @@ class HyperparamStruct(object):
             parser.add_argument(argk, type=type(self.__dict__[k]), default=self.__dict__[k],
                     help=self.descs[k])
 
+    def to_dict(self):
+        d = dict()
+        for k in self.__dict__:
+            if k != 'defaults' and k != 'descs':
+                d[k] = self.__dict__[k]
+        return d
+
     def set_from_dict(self, d):
         for (k, v) in d.iteritems():
             if k in self.__dict__:

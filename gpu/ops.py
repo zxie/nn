@@ -85,7 +85,7 @@ def exp(x):
 
 def square(x):
     if USE_GPU:
-        return x.square()
+        return x * x
     else:
         return gnp.square(x)
 

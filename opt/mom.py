@@ -1,5 +1,5 @@
 import cPickle as pickle
-from ops import array, zeros, as_np, l2norm
+from ops import array, zeros, as_np, l2norm, square, sqrt
 from optimizer import Optimizer
 from log_utils import get_logger
 
@@ -11,7 +11,12 @@ logger = get_logger()
 
 class MomentumOptimizer(Optimizer):
 
-    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None):
+    '''
+    max_grad: If set to float > 0, clips gradients
+    rmsprop: If true, scales gradients by exponential weighted magnitudes
+    '''
+
+    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None, rmsprop=False):
         super(MomentumOptimizer, self).__init__(model, alpha)
         # Momentum coefficient
         self.mom = mom
@@ -22,16 +27,23 @@ class MomentumOptimizer(Optimizer):
 
         # Velocities
         self.vel = dict()
-        for p in self.params:
-            self.vel[p] = zeros(self.params[p].shape)
-        self.updates = self.vel
+        if self.mom > 0:
+            for p in self.params:
+                self.vel[p] = zeros(self.params[p].shape)
+            self.updates = self.vel
+        else:
+            self.updates = dict()
 
         # Keep track of cost and smoothed cost
         self.costs = list()
         self.expcosts = list()
 
-        # Also keep track of grads
-        self.grads = list()
+        self.rmsprop = rmsprop
+        if rmsprop:
+            # Scale gradients by exponentially weighted average of magnitudes
+            self.msgrads = dict()
+            for p in self.params:
+                self.msgrads[p] = None
 
     def get_mom(self):
         if self.iters < self.low_mom_iters:
@@ -51,18 +63,34 @@ class MomentumOptimizer(Optimizer):
             return self.alpha * (self.max_grad / self.grad_norm)
         return self.alpha
 
+    def rmsprop_update(self, grads):
+        if self.rmsprop:
+            for p in self.msgrads:
+                if self.msgrads[p] is None:
+                    self.msgrads[p] = square(grads[p])
+                else:
+                    self.msgrads[p] = 0.9 * self.msgrads[p] + 0.1 * square(grads[p])
+            for p in grads:
+                # FIXME
+                grads[p] /= sqrt(self.msgrads[p] + 1.0)
+
     def compute_update(self, data, labels):
         mom = self.get_mom()
         cost, grads = self.model.cost_and_grad(data, labels)
 
-        if self.max_grad is not None:
+        self.rmsprop_update(grads)
+
+        if self.max_grad is not None and self.max_grad > 0:
             alph = self.clip_grads(grads)
         else:
             alph = self.alpha
 
         self.update_costs(cost)
         for p in grads:
-            self.vel[p] = mom * self.vel[p] + alph * grads[p]
+            if self.mom > 0:
+                self.vel[p] = mom * self.vel[p] + alph * grads[p]
+            else:
+                self.updates[p] = alph * grads[p]
 
     def update_costs(self, cost):
         self.costs.append(cost)
@@ -76,12 +104,14 @@ class MomentumOptimizer(Optimizer):
         pickle.dump(self.iters, fout)
         pickle.dump(self.costs, fout)
         pickle.dump(self.expcosts, fout)
-        pickle.dump([as_np(self.vel[k]) for k in self.model.param_keys], fout)
+        if self.mom > 0:
+            pickle.dump([as_np(self.vel[k]) for k in self.model.param_keys], fout)
 
     def from_file(self, fin):
         self.iters = pickle.load(fin)
         self.costs = pickle.load(fin)
         self.expcosts = pickle.load(fin)
-        loaded_vels = pickle.load(fin)
-        # Put back on gpu
-        self.vel = zip(self.model.param_keys, [array(v) for v in loaded_vels])
+        if self.mom > 0:
+            loaded_vels = pickle.load(fin)
+            # Put back on gpu
+            self.vel = zip(self.model.param_keys, [array(v) for v in loaded_vels])

@@ -11,10 +11,8 @@ from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
 
 # TODO
-# - Gradient clipping
 # - Bi-directional
 # - Deep
-# - Max length / unroll instead of fixed?
 # - mRNN (hopefully can just subclass and make few changes)
 # - Need to figure out best nonlinearities too
 
@@ -30,7 +28,6 @@ class RNNHyperparams(ModelHyperparams):
             ('hidden_size', 2200, 'size of hidden layers'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 128, 'size of dataset batches'),
-            ('max_grad', 100.0, 'threshold to perform gradient clipping'),
             ('max_act', 10.0, 'threshold to clip activation'),
             ('nl', 'relu', 'type of nonlinearity')
         ]
@@ -51,9 +48,7 @@ class RNN(Net):
         self.alloc_grads()
 
         if train:
-            self.opt = create_optimizer(opt, self, alpha=opt_hps.alpha,
-                    mom=opt_hps.mom, mom_low=opt_hps.mom_low,
-                    low_mom_iters=opt_hps.low_mom_iters, max_grad=hps.max_grad)
+            self.opt = create_optimizer(opt, self, **(opt_hps.to_dict()))
 
     @staticmethod
     def init_hyperparams():

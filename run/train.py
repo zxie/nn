@@ -29,6 +29,8 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('epochs', type=int, help='number of epochs to train')
+    parser.add_argument('--opt', default='nag', help='optimizer to use', choices=['cm', 'nag'])
+    parser.add_argument('--anneal_factor', type=float, default=2.0, help='annealing factor after each epoch')
     parser.add_argument('out_dir', help='output directory to write model files')
     parser.add_argument('--cfg_file', help='cfg file for restarting run')
     model_hps.add_to_argparser(parser)
@@ -50,7 +52,7 @@ def main():
     dataset = UttCharStream(args.batch_size)
 
     # Construct network
-    model = model_class(dataset, model_hps, opt_hps, opt='nag')
+    model = model_class(dataset, model_hps, opt_hps, opt=args.opt)
 
     # Run training
     for k in xrange(0, args.epochs):
@@ -58,6 +60,7 @@ def main():
         while dataset.data_left():
             model.run()
 
+            '''
             # DEBUG
             if model.opt.costs[-1] > 3:
                 batch = dataset.batch
@@ -65,6 +68,7 @@ def main():
                 for line in batch:
                     print ''.join([dataset.chars[c] for c in line])
                 print '-' * 80
+            '''
 
             if it % 1 == 0:
                 logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f, gnorm=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1], model.opt.grad_norm))
