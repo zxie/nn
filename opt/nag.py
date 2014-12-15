@@ -29,6 +29,10 @@ class NesterovOptimizer(MomentumOptimizer):
             self.params[p] = self.params[p] + mom*self.vel[p]
 
         for p in grads:
-            self.vel[p] = mom * self.vel[p] + alph * grads[p]
+            if self.mom > 0:
+                self.vel[p] = mom * self.vel[p] + alph * grads[p]
+            else:
+                # NOTE vel is updates
+                self.vel[p] = alph * grads[p]
 
         return cost

@@ -32,7 +32,7 @@ class MomentumOptimizer(Optimizer):
                 self.vel[p] = zeros(self.params[p].shape)
             self.updates = self.vel
         else:
-            self.updates = dict()
+            self.vel = self.updates = dict()
 
         # Keep track of cost and smoothed cost
         self.costs = list()
@@ -64,19 +64,19 @@ class MomentumOptimizer(Optimizer):
         return self.alpha
 
     def rmsprop_update(self, grads):
+        # NOTE In slides says momentum does not help as much
+        # TODO Also for NAG they suggest dividing correction rather than vel
         if self.rmsprop:
             for p in self.msgrads:
                 if self.msgrads[p] is None:
                     self.msgrads[p] = square(grads[p])
                 else:
                     self.msgrads[p] = 0.9 * self.msgrads[p] + 0.1 * square(grads[p])
-            for p in grads:
-                # FIXME
-                grads[p] /= sqrt(self.msgrads[p] + 1.0)
 
     def compute_update(self, data, labels):
         mom = self.get_mom()
         cost, grads = self.model.cost_and_grad(data, labels)
+        self.update_costs(cost)
 
         self.rmsprop_update(grads)
 
@@ -85,12 +85,20 @@ class MomentumOptimizer(Optimizer):
         else:
             alph = self.alpha
 
-        self.update_costs(cost)
         for p in grads:
             if self.mom > 0:
                 self.vel[p] = mom * self.vel[p] + alph * grads[p]
             else:
-                self.updates[p] = alph * grads[p]
+                # NOTE vel is updates
+                self.vel[p] = alph * grads[p]
+
+    def apply_update(self):
+        for p in self.params:
+            if self.rmsprop:
+                self.params[p] -= self.updates[p]
+            else:
+                # FIXME PARAM Smoothing parameter
+                self.params[p] -= self.updates[p] / sqrt(self.msgrads[p] + 1e-6)
 
     def update_costs(self, cost):
         self.costs.append(cost)

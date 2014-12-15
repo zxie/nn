@@ -46,8 +46,6 @@ def main():
     dump_config(cfg, cfg['cfg_file'])
 
     # Load dataset
-    #dataset = BrownCorpus(args.context_size, args.batch_size)
-    # FIXME Move context and data file to param...
     #dataset = CharStream(CONTEXT, args.batch_size, step=1)
     dataset = UttCharStream(args.batch_size)
 
@@ -59,16 +57,6 @@ def main():
         it = 0
         while dataset.data_left():
             model.run()
-
-            '''
-            # DEBUG
-            if model.opt.costs[-1] > 3:
-                batch = dataset.batch
-                print '-' * 80
-                for line in batch:
-                    print ''.join([dataset.chars[c] for c in line])
-                print '-' * 80
-            '''
 
             if it % 1 == 0:
                 logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f, gnorm=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1], model.opt.grad_norm))

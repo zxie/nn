@@ -9,7 +9,6 @@ logger = get_logger()
 random.seed(19)
 
 # # NOTE Pad at least this much to give the RNN flexibility
-MIN_UTT_LENGTH = 5
 MAX_UTT_LENGTH = 300
 
 class UttCharStream(CharStream):
@@ -48,7 +47,9 @@ class UttCharStream(CharStream):
     def sort_and_shuffle_lines(self):
         assert len(self.lines) > 0
         logger.info('# lines: %d' % len(self.lines))
-        # First sort by length to save computation
+        # First shuffle once
+        random.shuffle(self.lines)
+        # Then sort by length to save computation
         self.lines.sort(lambda x, y: cmp(len(x), len(y)))
         # Then shuffle batches
         batch_inds = list(xrange(len(self.lines) / self.batch_size))
@@ -63,8 +64,8 @@ class UttCharStream(CharStream):
     def get_data_from_line(self, line):
         # NOTE Removing whitespace
         line = line.strip()
-        line_chars =  [self.char_inds[c] for c in line]
-        data = [self.char_inds['<null>']] * MIN_UTT_LENGTH + [self.char_inds['<s>']] +  line_chars
+        line_chars = [self.char_inds[c] for c in line]
+        data = [self.char_inds['<s>']] + line_chars
         labels = data[1:] + [self.char_inds['</s>']]
         return data, labels
 

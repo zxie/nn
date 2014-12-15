@@ -1,23 +1,19 @@
 import numpy as np
 from optimizer import OptimizerHyperparams
-from ops import empty, zeros, get_nl, softmax, mult, tile,\
-        get_nl_grad, as_np, array, log, vp_init, rand,\
-        USE_GPU, gnp, mean
+from ops import zeros, get_nl, softmax, mult,\
+        get_nl_grad, as_np, array, log, vp_init,\
+        USE_GPU, gnp, empty
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
-from utt_char_stream import UttCharStream, MAX_UTT_LENGTH, MIN_UTT_LENGTH
+from utt_char_stream import UttCharStream
 from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
 
 # TODO
 # - Bi-directional
-# - Deep
 # - mRNN (hopefully can just subclass and make few changes)
 # - Need to figure out best nonlinearities too
-
-# Maybe
-# - Replace h0 w/ b0
 
 logger = get_logger()
 
@@ -25,10 +21,12 @@ class RNNHyperparams(ModelHyperparams):
 
     def __init__(self, **entries):
         self.defaults = [
-            ('hidden_size', 2200, 'size of hidden layers'),
+            ('hidden_size', 1000, 'size of hidden layers'),
+            ('hidden_layers', 5, 'number of hidden layers'),
+            ('recurrent_layer', 3, 'layer which should have recurrent connections'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 128, 'size of dataset batches'),
-            ('max_act', 10.0, 'threshold to clip activation'),
+            ('max_act', 5.0, 'threshold to clip activation'),
             ('nl', 'relu', 'type of nonlinearity')
         ]
         super(RNNHyperparams, self).__init__(entries)
@@ -60,18 +58,23 @@ class RNN(Net):
         hps = self.hps
 
         # Initial hidden state
-        self.params['h0'] = zeros((hps.hidden_size, 1))
+        self.params['h0'] = zeros((hps.hidden_size, hps.hidden_layers))
 
-        # input to hidden, note bias in hidden to hidden
+        # Input to hidden, note if first layer is recurrent bih is redundant
         self.params['Wih'] = vp_init((hps.hidden_size, hps.output_size))
+        self.params['bih'] = zeros((hps.hidden_size, 1))
 
-        # hidden to hidden
+        # recurrent weight
         # NOTE Initialization important for grad check, don't use vp_init?
         self.params['Whh'] = vp_init((hps.hidden_size, hps.hidden_size))
-        #self.params['Whh'] = rand((hps.hidden_size, hps.hidden_size), rg=[-INIT_EPS, INIT_EPS])
         self.params['bhh'] = zeros((hps.hidden_size, 1))
 
-        # hidden to output
+        # Weights between hidden layers
+        for k in xrange(1, hps.hidden_layers):
+            self.params['Wh%d' % k] = vp_init((hps.hidden_size, hps.hidden_size))
+            self.params['bh%d' % k] = zeros((hps.hidden_size, 1))
+
+        # Hidden to output
         self.params['Who'] = vp_init((hps.output_size, hps.hidden_size))
         self.params['bho'] = zeros((hps.output_size, 1))
 
@@ -90,14 +93,15 @@ class RNN(Net):
 
         if check_grad:
             cost, grads = self.cost_and_grad(data, labels)
-            self.check_grad(data, labels, grads, params_to_check=['Whh'], eps=0.01)
-
-        if back:
-            self.update_params(data, labels)
+            self.check_grad(data, labels, grads, params_to_check=['Who'], eps=0.1)
         else:
-            cost, probs = self.cost_and_grad(data, labels, back=False)
-            return cost, probs
+            if back:
+                self.update_params(data, labels)
+            else:
+                cost, probs = self.cost_and_grad(data, labels, back=False)
+                return cost, probs
 
+    @profile
     def cost_and_grad(self, data, labels, back=True, prev_h0=None):
         hps = self.hps
         T = data.shape[1]
@@ -111,17 +115,20 @@ class RNN(Net):
         #probs = self.probs[:, 0:T, 0:bsize]
         #dprobs = self.dprobs[:, 0:T, 0:bsize]
         #costs = self.costs[0:T, 0:bsize]
-        us = zeros((hps.hidden_size, T, bsize))
-        dus = zeros((hps.hidden_size, T, bsize))
-        hs = zeros((hps.hidden_size, T, bsize))
-        dhs = zeros((hps.hidden_size, T, bsize))
+        us = zeros((hps.hidden_size, T, bsize, hps.hidden_layers))
+        dus = zeros((hps.hidden_size, T, bsize, hps.hidden_layers))
+        hs = zeros((hps.hidden_size, T, bsize, hps.hidden_layers))
+        dhs = zeros((hps.hidden_size, T, bsize, hps.hidden_layers))
         probs = zeros((hps.output_size, T, bsize))
         costs = np.zeros((T, bsize))
 
+        h0 = empty((hps.hidden_size, bsize, hps.hidden_layers))
         if prev_h0 is not None:
-            h0 = tile(prev_h0, bsize)
+            h0 = prev_h0
         else:
-            h0 = tile(self.params['h0'], bsize)
+            for k in xrange(bsize):
+                h0[:, k, :] = self.params['h0']
+        bih = self.params['bih']
         Wih = self.params['Wih']
         Whh = self.params['Whh']
         bhh = self.params['bhh']
@@ -131,18 +138,30 @@ class RNN(Net):
         # Forward prop
 
         for t in xrange(T):
-            if t == 0:
-                hprev = h0
-            else:
-                hprev = hs[:, t-1, :]
-            # Clip maximum activation
-            us[:, t, :] = mult(Wih, data[:, t, :]) + mult(Whh, hprev) + bhh
-            mask = us[:, t, :] < hps.max_act
-            us[:, t, :] = us[:, t, :] * mask + hps.max_act * (1 - mask)
-            hs[:, t, :] = self.nl(us[:, t, :])
-            probs[:, t, :] = softmax(mult(Who, hs[:, t, :]) + bho)
+            for k in xrange(hps.hidden_layers):
+                if t == 0:
+                    hprev = h0[:, :, k]
+                else:
+                    hprev = hs[:, t-1, :, k]
 
-        self.last_h = hs[:, -1, :].reshape((-1, 1))
+                if k == 0:
+                    us[:, t, :, k] = mult(Wih, data[:, t, :]) + bih
+                else:
+                    us[:, t, :, k] = mult(self.params['Wh%d' % k], hs[:, t, :, k-1])
+
+                if k == hps.recurrent_layer - 1:
+                    us[:, t, :, k] += mult(Whh, hprev) + bhh
+                    # Clip maximum activation
+                    mask = us[:, t, :, k] < hps.max_act
+                    us[:, t, :, k] = us[:, t, :, k] * mask + hps.max_act * (1 - mask)
+                elif k != 0:
+                    us[:, t, :, k] += self.params['bh%d' % k]
+
+                hs[:, t, :, k] = self.nl(us[:, t, :, k])
+
+            probs[:, t, :] = softmax(mult(Who, hs[:, t, :, -1]) + bho)
+
+        self.last_h = hs[:, -1, :, :]
 
         if labels is None:
             return None, probs
@@ -158,8 +177,7 @@ class RNN(Net):
         # NOTE Summing costs over time
         # NOTE FIXME Dividing by T to get better sense if objective
         # is decreasing, remove for grad checking
-        #cost = costs.sum() / bsize / float(T)
-        cost = (costs.sum() - costs[0:MIN_UTT_LENGTH, :].sum()) / bsize / float(T-MIN_UTT_LENGTH)
+        cost = costs.sum() / bsize / float(T)
         if not back:
             return cost, probs
 
@@ -170,19 +188,31 @@ class RNN(Net):
 
         for t in reversed(xrange(T)):
             self.grads['bho'] += dprobs[:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
-            self.grads['Who'] += mult(dprobs[:, t, :], hs[:, t, :].T) / bsize
-            dhs[:, t, :] += mult(Who.T, dprobs[:, t, :])
-            dus[:, t, :] += get_nl_grad(self.hps.nl, us[:, t, :]) * dhs[:, t, :]
-            self.grads['Wih'] += mult(dus[:, t, :], data[:, t, :].T) / bsize
-            self.grads['bhh'] += dus[:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
-            if t == 0:
-                hprev = h0
-                hgrad = self.grads['h0']
-            else:
-                hprev = hs[:, t-1, :]
-                hgrad = dhs[:, t-1, :]
-            self.grads['Whh'] += mult(dus[:, t, :], hprev.T) / bsize
-            hgrad[:] = mult(Whh.T, dus[:, t, :]).sum(axis=-1).reshape(-1, 1) / bsize
+            self.grads['Who'] += mult(dprobs[:, t, :], hs[:, t, :, -1].T) / bsize
+
+            for k in reversed(xrange(hps.hidden_layers)):
+                if k == hps.hidden_layers - 1:
+                    dhs[:, t, :, k] += mult(Who.T, dprobs[:, t, :])
+                else:
+                    dhs[:, t, :, k] += mult(self.params['Wh%d' % (k+1)].T, dhs[:, t, :, k+1])
+                dus[:, t, :, k] += get_nl_grad(self.hps.nl, us[:, t, :, k]) * dhs[:, t, :, k]
+
+                if k > 0:
+                    self.grads['Wh%d' % k] += mult(dus[:, t, :, k], hs[:, t, :, k-1].T) / bsize
+                    self.grads['bh%d' % k] += dus[:, t, :, k].sum(axis=-1).reshape((-1, 1)) / bsize
+
+                if k == hps.recurrent_layer - 1:
+                    if t == 0:
+                        hprev = h0[:, :, k]
+                        self.grads['h0'][:, k] = mult(Whh.T, dus[:, t, :, k]).sum(axis=-1) / bsize
+                    else:
+                        hprev = hs[:, t-1, :, k]
+                        dhs[:, t-1, :, k] = mult(Whh.T, dus[:, t, :, k]).sum(axis=-1).reshape(-1, 1) / bsize
+                    self.grads['Whh'] += mult(dus[:, t, :, k], hprev.T) / bsize
+                    self.grads['bhh'] += dus[:, t, :, k].sum(axis=-1).reshape((-1, 1)) / bsize
+
+            self.grads['Wih'] += mult(dus[:, t, :, 0], data[:, t, :].T) / bsize
+            self.grads['bih'] += dus[:, t, :, 0].sum(axis=-1).reshape((-1, 1)) / bsize
 
         return cost, self.grads
 
@@ -192,6 +222,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     model_hps = RNNHyperparams()
+    model_hps.hidden_size = 10
     opt_hps = OptimizerHyperparams()
     model_hps.add_to_argparser(parser)
     opt_hps.add_to_argparser(parser)
