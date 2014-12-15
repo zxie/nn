@@ -11,8 +11,8 @@ from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
 
 # NOTE Uncomment this for grad-checking
-#def vp_init(shape):
-    #return rand(shape, (-0.01, 0.01))
+def vp_init(shape):
+    return rand(shape, (-0.01, 0.01))
 
 # TODO
 # - Bi-directional
@@ -97,7 +97,7 @@ class RNN(Net):
 
         if check_grad:
             cost, grads = self.cost_and_grad(data, labels)
-            self.check_grad(data, labels, grads, params_to_check=['Wh1'], eps=0.1)
+            self.check_grad(data, labels, grads, params_to_check=['h0'], eps=0.1)
         else:
             if back:
                 self.update_params(data, labels)
@@ -125,12 +125,19 @@ class RNN(Net):
         dhs = list()
         h0 = list()
         for k in xrange(hps.hidden_layers):
-            us.append(zeros((hps.hidden_size, T, bsize)))
-            dus.append(zeros((hps.hidden_size, T, bsize)))
-            hs.append(zeros((hps.hidden_size, T, bsize)))
-            dhs.append(zeros((hps.hidden_size, T, bsize)))
+            us.append(list())
+            dus.append(list())
+            hs.append(list())
+            dhs.append(list())
             h0.append(empty((hps.hidden_size, bsize)))
-        probs = zeros((hps.output_size, T, bsize))
+            for t in xrange(T):
+                us[k].append(zeros((hps.hidden_size, bsize)))
+                dus[k].append(zeros((hps.hidden_size, bsize)))
+                hs[k].append(zeros((hps.hidden_size, bsize)))
+                dhs[k].append(zeros((hps.hidden_size, bsize)))
+        probs = list()
+        for t in xrange(T):
+            probs.append(zeros((hps.output_size, bsize)))
         costs = np.zeros((T, bsize))
         if prev_h0 is not None:
             h0 = prev_h0
@@ -151,37 +158,43 @@ class RNN(Net):
                 if t == 0:
                     hprev = h0[k]
                 else:
-                    hprev = hs[k][:, t-1, :]
+                    hprev = hs[k][t-1]
 
                 if k == 0:
-                    us[k][:, t, :] = mult(Wih, data[:, t, :]) + bih
+                    us[k][t] = mult(Wih, data[:, t, :]) + bih
                 else:
-                    us[k][:, t, :] = mult(self.params['Wh%d' % k], hs[k-1][:, t, :])
+                    us[k][t] = mult(self.params['Wh%d' % k], hs[k-1][t])
 
                 if k == hps.recurrent_layer - 1:
-                    us[k][:, t, :] += mult(Whh, hprev) + bhh
+                    us[k][t] += mult(Whh, hprev) + bhh
                     # Clip maximum activation
-                    mask = us[k][:, t, :] < hps.max_act
-                    us[k][:, t, :] = us[k][:, t, :] * mask + hps.max_act * (1 - mask)
+                    mask = us[k][t] < hps.max_act
+                    us[k][t] = us[k][t] * mask + hps.max_act * (1 - mask)
                 elif k != 0:
-                    us[k][:, t, :] += self.params['bh%d' % k]
+                    us[k][t] += self.params['bh%d' % k]
 
-                hs[k][:, t, :] = self.nl(us[k][:, t, :])
+                hs[k][t] = self.nl(us[k][t])
 
-            probs[:, t, :] = softmax(mult(Who, hs[-1][:, t, :]) + bho)
+            probs[t] = softmax(mult(Who, hs[-1][t]) + bho)
 
-        self.last_h = hs[-1][:, :, :]
+        self.last_h = list()
+        for k in xrange(hps.hidden_layers):
+            self.last_h.append(hs[k][-1])
 
         if labels is None:
             return None, probs
 
-        probs_neg_log = as_np(-1 * log(probs))
-        dprobs = as_np(probs.copy())
+        probs_neg_log = list()
+        dprobs = list()
+        for t in xrange(T):
+            probs_neg_log.append(as_np(-1 * log(probs[t])))
+            dprobs.append(as_np(probs[t].copy()))
         for k in xrange(bsize):
             for t in xrange(len(labels[k])):
-                costs[t, k] = probs_neg_log[labels[k][t], t, k]
-                dprobs[labels[k][t], t, k] -= 1
-        dprobs = array(dprobs)
+                costs[t, k] = probs_neg_log[t][labels[k][t], k]
+                dprobs[t][labels[k][t], k] -= 1
+        for t in xrange(T):
+            dprobs[t] = array(dprobs[t])
 
         # NOTE Summing costs over time
         # NOTE FIXME Dividing by T to get better sense if objective
@@ -196,32 +209,32 @@ class RNN(Net):
             self.grads[k][:] = 0
 
         for t in reversed(xrange(T)):
-            self.grads['bho'] += dprobs[:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
-            self.grads['Who'] += mult(dprobs[:, t, :], hs[-1][:, t, :].T) / bsize
+            self.grads['bho'] += dprobs[t][:, :].sum(axis=-1).reshape((-1, 1)) / bsize
+            self.grads['Who'] += mult(dprobs[t], hs[-1][t].T) / bsize
 
             for k in reversed(xrange(hps.hidden_layers)):
                 if k == hps.hidden_layers - 1:
-                    dhs[k][:, t, :] += mult(Who.T, dprobs[:, t, :])
+                    dhs[k][t] += mult(Who.T, dprobs[t])
                 else:
-                    dhs[k][:, t, :] += mult(self.params['Wh%d' % (k+1)].T, dhs[k+1][:, t, :])
-                dus[k][:, t, :] += get_nl_grad(self.hps.nl, us[k][:, t, :]) * dhs[k][:, t, :]
+                    dhs[k][t] += mult(self.params['Wh%d' % (k+1)].T, dhs[k+1][t])
+                dus[k][t] += get_nl_grad(self.hps.nl, us[k][t]) * dhs[k][t]
 
                 if k > 0:
-                    self.grads['Wh%d' % k] += mult(dus[k][:, t, :], hs[k-1][:, t, :].T) / bsize
-                    self.grads['bh%d' % k] += dus[k][:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
+                    self.grads['Wh%d' % k] += mult(dus[k][t], hs[k-1][t].T) / bsize
+                    self.grads['bh%d' % k] += dus[k][t].sum(axis=-1).reshape((-1, 1)) / bsize
 
                 if k == hps.recurrent_layer - 1:
                     if t == 0:
                         hprev = h0[k]
-                        self.grads['h0'][:, k] = mult(Whh.T, dus[k][:, t, :]).sum(axis=-1) / bsize
+                        self.grads['h0'][:, k] = mult(Whh.T, dus[k][t]).sum(axis=-1) / bsize
                     else:
-                        hprev = hs[k][:, t-1, :]
-                        dhs[k][:, t-1, :] = mult(Whh.T, dus[k][:, t, :]).sum(axis=-1).reshape(-1, 1) / bsize
-                    self.grads['Whh'] += mult(dus[k][:, t, :], hprev.T) / bsize
-                    self.grads['bhh'] += dus[k][:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
+                        hprev = hs[k][t-1]
+                        dhs[k][t-1] = mult(Whh.T, dus[k][t])
+                    self.grads['Whh'] += mult(dus[k][t], hprev.T) / bsize
+                    self.grads['bhh'] += dus[k][t].sum(axis=-1).reshape((-1, 1)) / bsize
 
-            self.grads['Wih'] += mult(dus[0][:, t, :], data[:, t, :].T) / bsize
-            self.grads['bih'] += dus[0][:, t, :].sum(axis=-1).reshape((-1, 1)) / bsize
+            self.grads['Wih'] += mult(dus[0][t], data[:, t, :].T) / bsize
+            self.grads['bih'] += dus[0][t].sum(axis=-1).reshape((-1, 1)) / bsize
 
         return cost, self.grads
 

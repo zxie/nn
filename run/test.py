@@ -50,7 +50,7 @@ if __name__ == '__main__':
         dataset = UttCharStream(model_hps.batch_size, subset='test')
 
     # Construct network
-    model = model_class(dataset, model_hps, opt_hps, train=False, opt='nag')
+    model = model_class(dataset, model_hps, opt_hps, train=False)
     # Load parameters
     if args.params_file:
         params_file = args.params_file
@@ -67,7 +67,9 @@ if __name__ == '__main__':
         cost, probs = model.run(back=False)
 
         if MODEL_TYPE == 'rnn':
-            llt = as_np(probs)
+            llt = np.zeros((probs[0].shape[0], len(probs), probs[0].shape[1]))
+            for t in xrange(len(probs)):
+                llt[:, t, :] = as_np(probs[t])
 
             # Deal with sequences in batch being of different lengths
             ll = llt[:, 0:len(model.dset.batch_labels[0]), 0].reshape((llt.shape[0], -1))

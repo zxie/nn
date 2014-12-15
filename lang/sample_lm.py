@@ -68,7 +68,7 @@ if __name__ == '__main__':
     chars = dict((v, k) for k, v in char_inds.iteritems())
 
     # Construct network
-    model = model_class(None, model_hps, opt_hps, train=False, opt='nag')
+    model = model_class(None, model_hps, opt_hps, train=False)
     # FIXME
     with open(pjoin(os.path.dirname(args.cfg_file), 'params_save_every.pk'), 'rb') as fin:
         model.from_file(fin)

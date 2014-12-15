@@ -7,13 +7,15 @@ from mom import MomentumOptimizer
 class NesterovOptimizer(MomentumOptimizer):
 
     def compute_update(self, data, labels):
+        assert self.mom > 0, 'No point using NAG with 0 momentum'
         mom = self.get_mom()
         cost, _ = self.model.cost_and_grad(data, labels, back=False)
         self.update_costs(cost)
 
         # Update parameters with partial update for peek-ahead
         for p in self.params:
-            self.params[p] = self.params[p] - mom*self.vel[p]
+            if self.mom > 0:
+                self.params[p] = self.params[p] - mom*self.vel[p]
         _, grads = self.model.cost_and_grad(data, labels)
 
         self.rmsprop_update(grads)

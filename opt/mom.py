@@ -16,7 +16,7 @@ class MomentumOptimizer(Optimizer):
     rmsprop: If true, scales gradients by exponential weighted magnitudes
     '''
 
-    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None, rmsprop=False):
+    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None, rmsprop=False, rmsprop_decay=0.99):
         super(MomentumOptimizer, self).__init__(model, alpha)
         # Momentum coefficient
         self.mom = mom
@@ -39,6 +39,7 @@ class MomentumOptimizer(Optimizer):
         self.expcosts = list()
 
         self.rmsprop = rmsprop
+        self.rmsprop_decay = rmsprop_decay
         if rmsprop:
             # Scale gradients by exponentially weighted average of magnitudes
             self.msgrads = dict()
@@ -71,7 +72,7 @@ class MomentumOptimizer(Optimizer):
                 if self.msgrads[p] is None:
                     self.msgrads[p] = square(grads[p])
                 else:
-                    self.msgrads[p] = 0.9 * self.msgrads[p] + 0.1 * square(grads[p])
+                    self.msgrads[p] = self.rmsprop_decay * self.msgrads[p] + (1-self.rmsprop_decay) * square(grads[p])
 
     def compute_update(self, data, labels):
         mom = self.get_mom()
@@ -95,10 +96,10 @@ class MomentumOptimizer(Optimizer):
     def apply_update(self):
         for p in self.params:
             if self.rmsprop:
-                self.params[p] -= self.updates[p]
-            else:
                 # FIXME PARAM Smoothing parameter
-                self.params[p] -= self.updates[p] / sqrt(self.msgrads[p] + 1e-6)
+                self.params[p] -= self.updates[p] / sqrt(self.msgrads[p] + 0.01)
+            else:
+                self.params[p] -= self.updates[p]
 
     def update_costs(self, cost):
         self.costs.append(cost)
