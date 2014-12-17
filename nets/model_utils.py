@@ -1,4 +1,4 @@
-from rnn2 import RNN
+from rnn import RNN
 from nplm import NPLM
 from nclm import NCLM
 from dnn import DNN
