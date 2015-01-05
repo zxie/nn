@@ -44,6 +44,7 @@ class CharStream(Dataset):
         logger.info('Loading %s' % self.files[self.file_ind])
         with open(self.files[self.file_ind], 'r') as fin:
             self.lines = fin.read().splitlines()
+            random.shuffle(self.lines)
 
     def data_left(self):
         return self.file_ind < len(self.files) - 1\
@@ -52,6 +53,7 @@ class CharStream(Dataset):
     # NOTE Assumes that OOV characters have been filtered
     # and text has been lower-cased and stripped
     def get_data_from_line(self, line, batch_left):
+        line = ''.join([c for c in line if c in self.char_inds])
         # + 1 since add </s>
         N = min(len(line) - self.char_ind + 1, batch_left * self.step)
         line = ['<null>'] * (CONTEXT - 1) + ['<s>'] + list(line) + ['</s>']
@@ -97,6 +99,7 @@ class CharStream(Dataset):
                     logger.info('Loading %s' % self.files[self.file_ind])
                     with open(self.files[self.file_ind], 'r') as fin:
                         self.lines = fin.read().splitlines()
+                        random.shuffle(self.lines)
                 else:
                     break
 
@@ -109,15 +112,14 @@ class CharStream(Dataset):
 
         return self.batch, self.batch_labels
 
-    def restart(self, shuffle=False):
-        # Don't shuffle over utts, probably way too slow
-        if shuffle:
-            random.shuffle(self.files)
+    def restart(self, shuffle=True):
         self.file_ind = 0
         self.line_ind = 0
         self.char_ind = 0
         with open(self.files[self.file_ind], 'r') as fin:
             self.lines = fin.read().splitlines()
+        if shuffle:
+            random.shuffle(self.lines)
 
 
 if __name__ == '__main__':

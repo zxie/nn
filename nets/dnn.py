@@ -61,7 +61,9 @@ class DNN(Net):
     def run(self, back=True):
         super(DNN, self).run(back=back)
 
-        data, labels = self.dset.get_batch()
+        data = None
+        while data is None:
+            data, labels = self.dset.get_batch()
         data = one_hot(data, self.hps.output_size)
         data = data.reshape((-1, data.shape[2]))
         #cost, grads = self.cost_and_grad(data, labels)

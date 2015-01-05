@@ -56,6 +56,11 @@ def file_alive(fname, max_dur_sec=60*60*2):
     return (int(time.time()) - last_modified(fname)) < max_dur_sec
 
 
+def get_dev_acc(run_dir, k):
+    return None
+    #raise NotImplementedError()
+
+
 class TimeString(object):
 
     def __init__(self, time=datetime.datetime.today()):

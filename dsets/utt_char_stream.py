@@ -64,7 +64,7 @@ class UttCharStream(CharStream):
     def get_data_from_line(self, line):
         # NOTE Removing whitespace
         line = line.strip()
-        line_chars = [self.char_inds[c] for c in line]
+        line_chars = [self.char_inds[c] for c in line if c in self.char_inds]
         data = [self.char_inds['<s>']] + line_chars
         labels = data[1:] + [self.char_inds['</s>']]
         return data, labels
