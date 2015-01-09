@@ -8,6 +8,7 @@ from optimizer import OptimizerHyperparams
 from opt_utils import create_optimizer
 from char_corpus import CharCorpus, CONTEXT
 from dset_utils import one_hot
+import sys
 
 logger = get_logger()
 
@@ -84,6 +85,7 @@ class DNN(Net):
         # Forward prop
 
         acts = list()
+        print p.Wih.shape, data.shape
         acts.append(self.nl(mult(p.Wih, data) + p.bih))
 
         for k in xrange(hps.hidden_layers - 1):

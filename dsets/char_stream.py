@@ -20,8 +20,10 @@ class CharStream(Dataset):
 
         # NOTE Need to specify paths in subclasses
         self.text_path_files = {
-                'train': '/bak/swbd_data/train/files.txt',
-                'test': '/bak/swbd_data/test/files.txt'
+                #'train': '/bak/swbd_data/train/files.txt',
+                #'test': '/bak/swbd_data/test/files.txt'
+                'train': '/deep/u/zxie/swbd_data/train/files.txt',
+                'test': '/deep/u/zxie/swbd_data/test/files.txt'
         }
         self.subset = subset
         self.step = step

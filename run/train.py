@@ -3,8 +3,8 @@ import argparse
 from os.path import join as pjoin
 #from brown_corpus import BrownCorpus
 #from char_corpus import CharCorpus, CONTEXT
-#from char_stream import CharStream, CONTEXT
-from utt_char_stream import UttCharStream
+from char_stream import CharStream, CONTEXT
+#from utt_char_stream import UttCharStream
 from model_utils import get_model_class_and_params
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
@@ -18,8 +18,8 @@ gnumpy_setup()
 
 # PARAM
 SAVE_PARAMS_EVERY = 5000
-MODEL_TYPE = 'rnn'
-#MODEL_TYPE = 'dnn'
+#MODEL_TYPE = 'rnn'
+MODEL_TYPE = 'dnn'
 
 def main():
     # TODO Be able to pass in different models into training script as well?
@@ -46,8 +46,8 @@ def main():
     dump_config(cfg, cfg['cfg_file'])
 
     # Load dataset
-    #dataset = CharStream(CONTEXT, args.batch_size, step=1)
-    dataset = UttCharStream(args.batch_size)
+    dataset = CharStream(CONTEXT, args.batch_size, step=1)
+    #dataset = UttCharStream(args.batch_size)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt=args.opt)

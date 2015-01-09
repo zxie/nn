@@ -4,7 +4,7 @@ from os.path import join as pjoin
 if 'DSET_PATH' in os.environ:
     DSET_PATH = os.environ['DSET_PATH']
 else:
-    DSET_PATH = '/scail/data/group/deeplearning/u/zxie/dsets'
+    DSET_PATH = '/deep/u/zxie'
 
 # NLP data
 
@@ -25,5 +25,5 @@ SWBD_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'swbd_data.h5')
 FSH_DATA_PATH = '/bak/fsh_data'
 FSH_CORPUS_DATA_FILE = pjoin(DSET_PATH, 'fsh_data.h5')
 
-CHAR_CORPUS_DATA_FILE = FSH_CORPUS_DATA_FILE
-#CHAR_CORPUS_DATA_FILE = SWBD_CORPUS_DATA_FILE
+#CHAR_CORPUS_DATA_FILE = FSH_CORPUS_DATA_FILE
+CHAR_CORPUS_DATA_FILE = SWBD_CORPUS_DATA_FILE
