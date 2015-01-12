@@ -25,6 +25,12 @@ def array(arr):
     else:
         return arr
 
+def copy_arr(arr):
+    if USE_GPU:
+        return gnp.garray(arr, copy=True)
+    else:
+        return gnp.copy(arr)
+
 def as_np(arr):
     if USE_GPU:
         return arr.as_numpy_array()
@@ -54,6 +60,14 @@ def vp_init(shape):
     # Glorot et. al. 2012
     assert len(shape) == 2
     a = (6.0 / (shape[0] + shape[1])) ** 0.5
+    return rand(shape, (-a, a))
+
+def yl_init(shape):
+    # Initialization given in
+    # http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
+    # (Not quite this this is not the std, see
+    # https://plus.google.com/+SoumithChintala/posts/RZfdrRQWL6u)
+    a = 1.0 / shape[1] ** 0.5
     return rand(shape, (-a, a))
 
 # Matrix multiply
