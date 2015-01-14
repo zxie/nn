@@ -1,6 +1,6 @@
 import os
 
-EXP = 'ilm'
+EXP = 'brnn'
 
 RUN_DIR = '/bak/%s' % EXP  # FIXME
 if not os.path.exists(RUN_DIR):

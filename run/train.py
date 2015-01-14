@@ -19,8 +19,9 @@ gnumpy_setup()
 
 # PARAM
 SAVE_PARAMS_EVERY = 5000
-#MODEL_TYPE = 'rnn'
-MODEL_TYPE = 'dnn'
+#MODEL_TYPE = 'brnn'
+MODEL_TYPE = 'brnn'
+#MODEL_TYPE = 'dnn'
 
 def main():
     # TODO Be able to pass in different models into training script as well?
@@ -32,13 +33,18 @@ def main():
     parser.add_argument('epochs', type=int, help='number of epochs to train')
     parser.add_argument('--opt', default='nag', help='optimizer to use', choices=['cm', 'nag'])
     parser.add_argument('--anneal_factor', type=float, default=2.0, help='annealing factor after each epoch')
-    parser.add_argument('exp_dir', help='output directory to write experiment folders')
     parser.add_argument('--cfg_file', help='cfg file for restarting run')
+    parser.add_argument('--out_dir', default='', help='directory to output training data')
     model_hps.add_to_argparser(parser)
     opt_hps.add_to_argparser(parser)
     args = parser.parse_args()
 
-    out_dir = pjoin(RUN_DIR, str(TimeString()))
+    if not args.out_dir:
+        out_dir = pjoin(RUN_DIR, str(TimeString()))
+    else:
+        out_dir = args.out_dir
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     logger = get_logger(fpath=pjoin(out_dir, 'run.log'))
 
@@ -51,8 +57,8 @@ def main():
     dump_config(cfg, cfg['cfg_file'])
 
     # Load dataset
-    dataset = CharStream(CONTEXT, args.batch_size, step=1)
-    #dataset = UttCharStream(args.batch_size)
+    #dataset = CharStream(CONTEXT, args.batch_size, step=1)
+    dataset = UttCharStream(args.batch_size)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt=args.opt)
@@ -63,7 +69,7 @@ def main():
         while dataset.data_left():
             model.run()
 
-            if it % 100 == 0:
+            if it % 1 == 0:
                 logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f, gnorm=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1], model.opt.grad_norm))
                 #gnp.memory_allocators()
                 #print gnp.memory_in_use()
@@ -90,7 +96,7 @@ def main():
         # Save epoch file to denote epoch completed
         epoch_file = pjoin(out_dir, 'epoch')
         with open(epoch_file, 'w') as fout:
-            fout.write(k)
+            fout.write(str(k))
 
         if k != args.epochs - 1:
             model.start_next_epoch()

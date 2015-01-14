@@ -15,7 +15,7 @@ class NesterovOptimizer(MomentumOptimizer):
         # Update parameters with partial update for peek-ahead
         for p in self.params:
             if self.mom > 0:
-                self.params[p] = self.params[p] - mom*self.vel[p]
+                self.params[p][:] = self.params[p] - mom*self.vel[p]
         _, grads = self.model.cost_and_grad(data, labels)
 
         self.rmsprop_update(grads)
@@ -28,7 +28,7 @@ class NesterovOptimizer(MomentumOptimizer):
 
         # Undo updates to parameters
         for p in self.params:
-            self.params[p] = self.params[p] + mom*self.vel[p]
+            self.params[p][:] = self.params[p] + mom*self.vel[p]
 
         for p in grads:
             if self.mom > 0:

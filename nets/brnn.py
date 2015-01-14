@@ -28,10 +28,15 @@ class BRNNHyperparams(ModelHyperparams):
             ('input_size', 34, 'dimension of input example'),
             ('output_size', 34, 'size of softmax output'),
             ('batch_size', 128, 'size of dataset batches'),
-            ('max_act', 5.0, 'threshold to clip activation'),
+            ('max_act', 20.0, 'threshold to clip activation'),
             ('nl', 'relu', 'type of nonlinearity')
         ]
         super(BRNNHyperparams, self).__init__(entries)
+
+
+# FIXME PARAM
+def weight_init(shape):
+    return yl_init(shape)
 
 
 class Layer:
@@ -42,7 +47,7 @@ class Layer:
         self.b_recur = b_recur
         self.softmax = softmax
 
-        self.W = yl_init((out_size, inp_size))
+        self.W = weight_init((out_size, inp_size))
         self.b = zeros((out_size, 1))
         self.dW = zeros(self.W.shape)
         self.db = zeros(self.b.shape)
@@ -50,13 +55,13 @@ class Layer:
         self.params = {'W': self.W, 'b': self.b}
         self.grads = {'W': self.dW, 'b': self.db}
         if f_recur:
-            self.Wf = yl_init((out_size, out_size))
+            self.Wf = weight_init((out_size, out_size))
             self.dWf = zeros(self.Wf.shape)
             self.params['Wf'] = self.Wf
             self.grads['Wf'] = self.dWf
             self.f_acts = None
         if b_recur:
-            self.Wb = yl_init((out_size, out_size))
+            self.Wb = weight_init((out_size, out_size))
             self.dWb = zeros(self.Wb.shape)
             self.params['Wb'] = self.Wb
             self.grads['Wb'] = self.dWb
@@ -171,7 +176,9 @@ class BRNN(Net):
 
         costs, deltas = self.cross_ent(probs, labels)
 
-        cost = costs.sum() / self.bsize
+        # NOTE Dividing by T to get better sense if objective # is decreasing,
+        # remove for grad checking
+        cost = costs.sum() / self.bsize / float(self.T)
         if not back:
             return cost, probs
 
@@ -179,9 +186,7 @@ class BRNN(Net):
 
         self.backprop(deltas)
 
-        # NOTE Dividing by T to get better sense if objective # is decreasing,
-        # remove for grad checking
-        return cost / float(self.T), self.grads
+        return cost, self.grads
 
     def forward_prop(self):
         for layer in self.layers:
@@ -251,6 +256,11 @@ class BRNN(Net):
             if t > 0:
                 s = start + self.bsize if reverse else start - self.bsize
                 r_act += mult(W, r_acts[:, s:s+self.bsize])
+
+            if self.hps.max_act > 0:
+                mask = r_act < self.hps.max_act
+                r_act = r_act * mask + self.hps.max_act * (1 - mask)
+
             r_acts[:, start:start+self.bsize] = self.nl(r_act)
 
         return r_acts
@@ -261,12 +271,10 @@ class BRNN(Net):
             start = 0
             acts = layer.b_acts
             W = layer.Wb
-            dW = layer.dWb
         else:
             start = (self.T - 1) * self.bsize
             acts = layer.f_acts
             W = layer.Wf
-            dW = layer.dWf
 
         curr_act = acts[:, start:start+self.bsize]
         curr_dt = deltas[:, start:start+self.bsize] * get_nl_grad(self.hps.nl, curr_act)
@@ -285,9 +293,9 @@ class BRNN(Net):
             curr_dt = next_dt
 
         if reverse:
-            dW[:] = mult(deltas[:, :-self.bsize], acts[:, self.bsize:].T) / self.bsize
+            layer.dWb[:] = mult(deltas[:, :-self.bsize], acts[:, self.bsize:].T) / self.bsize
         else:
-            dW[:] = mult(deltas[:, self.bsize:], acts[:, :-self.bsize].T) / self.bsize
+            layer.dWf[:] = mult(deltas[:, self.bsize:], acts[:, :-self.bsize].T) / self.bsize
 
         return deltas
 
