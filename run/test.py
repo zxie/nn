@@ -44,7 +44,7 @@ if __name__ == '__main__':
     cfg = CfgStruct(**cfg)
 
     # Load dataset
-    if MODEL_TYPE != 'rnn':
+    if 'rnn' not in MODEL_TYPE:
         dataset = CharStream(CONTEXT, model_hps.batch_size, subset='test')
     else:
         dataset = UttCharStream(model_hps.batch_size, subset='test')
@@ -66,10 +66,13 @@ if __name__ == '__main__':
     while dataset.data_left():
         cost, probs = model.run(back=False)
 
-        if MODEL_TYPE == 'rnn':
-            llt = np.zeros((probs[0].shape[0], len(probs), probs[0].shape[1]))
-            for t in xrange(len(probs)):
-                llt[:, t, :] = as_np(probs[t])
+        if 'rnn' in MODEL_TYPE:
+            if MODEL_TYPE == 'brnn':
+                llt = as_np(probs).reshape((probs.shape[0], model.T, -1))
+            else:
+                llt = np.zeros((probs[0].shape[0], len(probs), probs[0].shape[1]))
+                for t in xrange(len(probs)):
+                    llt[:, t, :] = as_np(probs[t])
 
             # Deal with sequences in batch being of different lengths
             ll = llt[:, 0:len(model.dset.batch_labels[0]), 0].reshape((llt.shape[0], -1))

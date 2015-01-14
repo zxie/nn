@@ -20,13 +20,17 @@ Sample text from NN-LM
 
 
 def sample_continuation(s, model, order, alpha=1.0):
-    if MODEL_TYPE == 'rnn':
+    if 'rnn' in MODEL_TYPE:
         data = array(np.array([char_inds[w] for w in s[-1:]])).reshape(-1, 1)
     else:
         data = array(np.array([char_inds[w] for w in s[-order+1:]])).reshape(-1, 1)
 
     data = one_hot(data, model.hps.output_size)
-    if MODEL_TYPE == 'rnn':
+    if MODEL_TYPE == 'brnn':
+        data = data.reshape((data.shape[0], -1))
+        model.T = 1
+        model.bsize = 1
+    if 'rnn' in MODEL_TYPE:
         _, probs = model.cost_and_grad(data, None, prev_h0=model.last_h)
         probs = np.squeeze(as_np(probs))
     else:
@@ -75,7 +79,7 @@ if __name__ == '__main__':
 
     for j in range(SAMPLES):
         model.last_h = None
-        if MODEL_TYPE != 'rnn':
+        if 'rnn' in MODEL_TYPE:
             sample_string = ['<null>'] * (LM_ORDER - 2) + ['<s>']
         else:
             sample_string = ['<s>']
@@ -87,7 +91,7 @@ if __name__ == '__main__':
                 break
 
         #print ' '.join(sample_string[LM_ORDER - 2:])
-        if MODEL_TYPE != 'rnn':
+        if 'rnn' in MODEL_TYPE:
             print ''.join(sample_string[LM_ORDER - 2:])
         else:
             print ''.join(sample_string)

@@ -119,6 +119,10 @@ class BRNN(Net):
         self.params['b%d' % hps.hidden_layers] = layer.params['b']
         self.layers.append(layer)
 
+        # Keep around last hidden state in case want to resume RNN from there
+        # NOTE Only for non-bidirectional right now
+        self.last_h = None
+
         self.count_params()
 
     def alloc_grads(self):
@@ -162,7 +166,9 @@ class BRNN(Net):
                 cost, probs = self.cost_and_grad(data, labels, back=False)
                 return cost, probs
 
-    def cost_and_grad(self, data, labels, back=True):
+    def cost_and_grad(self, data, labels, back=True, prev_h0=None):
+        self.prev_h0 = prev_h0
+
         # Forward prop
 
         self.acts = [array(data)]
@@ -253,6 +259,10 @@ class BRNN(Net):
             else:
                 start = t * self.bsize
             r_act = acts[:, start:start+self.bsize]
+
+            if t == 0 and self.prev_h0 is not None and not reverse:
+                # TODO Could initialize for reverse as well if not just forward sampling?
+                r_act += mult(W, self.prev_h0)
             if t > 0:
                 s = start + self.bsize if reverse else start - self.bsize
                 r_act += mult(W, r_acts[:, s:s+self.bsize])
@@ -262,6 +272,9 @@ class BRNN(Net):
                 r_act = r_act * mask + self.hps.max_act * (1 - mask)
 
             r_acts[:, start:start+self.bsize] = self.nl(r_act)
+
+        if not reverse:
+            self.last_h = copy_arr(r_acts[:, -self.bsize:])
 
         return r_acts
 

@@ -56,7 +56,10 @@ class Net(object):
     def from_file(self, fin):
         logger.info('Loading state')
         loaded_params = pickle.load(fin)
-        self.params = dict(zip(self.param_keys, [array(param) for param in loaded_params]))
+        j = 0
+        for k in self.param_keys:
+            self.params[k][:] = loaded_params[j]
+            j += 1
         if self.train:
             self.opt.from_file(fin)
         self.params_loaded = True
