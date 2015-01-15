@@ -70,7 +70,7 @@ def main():
             model.run()
 
             if it % 1 == 0:
-                logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f, gnorm=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1], model.opt.grad_norm))
+                logger.info('epoch %d, iter %d, obj=%f, exp_obj=%f, gnorm=%f, unorm/pnorm=%f' % (k, it, model.opt.costs[-1], model.opt.expcosts[-1], model.opt.grad_norm, model.opt.update_norm / model.opt.weight_norm))
                 #gnp.memory_allocators()
                 #print gnp.memory_in_use()
             it += 1

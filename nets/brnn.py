@@ -2,7 +2,7 @@ import numpy as np
 from optimizer import OptimizerHyperparams
 from ops import zeros, get_nl, softmax, mult,\
         get_nl_grad, as_np, array, log, yl_init,\
-        USE_GPU, gnp, empty, tile, rand, copy_arr
+        USE_GPU, gnp, empty, tile, rand, copy_arr, vp_init
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
@@ -36,7 +36,7 @@ class BRNNHyperparams(ModelHyperparams):
 
 # FIXME PARAM
 def weight_init(shape):
-    return yl_init(shape)
+    return vp_init(shape)
 
 
 class Layer:

@@ -1,3 +1,4 @@
+import math
 import cPickle as pickle
 from ops import array, zeros, as_np, l2norm, square, sqrt
 from optimizer import Optimizer
@@ -16,7 +17,7 @@ class MomentumOptimizer(Optimizer):
     rmsprop: If true, scales gradients by exponential weighted magnitudes
     '''
 
-    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None, rmsprop=False, rmsprop_decay=0.99):
+    def __init__(self, model, alpha=1e-3, mom=0.95, mom_low=0.5, low_mom_iters=100, max_grad=None, rmsprop=False, rmsprop_decay=0.99, monitor_norms=True):
         super(MomentumOptimizer, self).__init__(model, alpha)
         # Momentum coefficient
         self.mom = mom
@@ -24,6 +25,10 @@ class MomentumOptimizer(Optimizer):
         self.low_mom_iters = low_mom_iters
         self.max_grad = max_grad
         self.grad_norm = 0.0
+        self.monitor_norms = monitor_norms
+        if monitor_norms:
+            self.update_norm = 0.0
+            self.weight_norm = 0.0
 
         # Velocities
         self.vel = dict()
@@ -93,6 +98,15 @@ class MomentumOptimizer(Optimizer):
                 # NOTE vel is updates
                 self.vel[p] = alph * grads[p]
 
+        if self.monitor_norms:
+            self.update_norm = 0
+            self.weight_norm = 0
+            for p in self.updates:
+                self.update_norm += l2norm(self.updates[p]) ** 2
+                self.weight_norm += l2norm(self.params[p]) ** 2
+            self.update_norm = self.update_norm ** 0.5
+            self.weight_norm = self.weight_norm ** 0.5
+
     def apply_update(self):
         for p in self.params:
             if self.rmsprop:
@@ -106,10 +120,14 @@ class MomentumOptimizer(Optimizer):
         if not self.expcosts:
             self.expcosts.append(cost)
         else:
+            # FIXME Hack to prevent inf costs forever
+            cost = self.expcosts[-1] if math.isinf(cost) else cost
             # PARAM
             self.expcosts.append(0.01*cost + 0.99*self.expcosts[-1])
 
     def to_file(self, fout):
+        # FIXME
+        return
         pickle.dump(self.iters, fout)
         pickle.dump(self.costs, fout)
         pickle.dump(self.expcosts, fout)
@@ -117,6 +135,8 @@ class MomentumOptimizer(Optimizer):
             pickle.dump([as_np(self.vel[k]) for k in self.model.param_keys], fout)
 
     def from_file(self, fin):
+        # FIXME
+        return
         self.iters = pickle.load(fin)
         self.costs = pickle.load(fin)
         self.expcosts = pickle.load(fin)

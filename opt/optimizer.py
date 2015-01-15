@@ -13,7 +13,7 @@ class OptimizerHyperparams(HyperparamStruct):
 
     def __init__(self, **entries):
         self.defaults = [
-            ('alpha', 0.01, 'step size'),
+            ('alpha', 0.1, 'step size'),
             ('mom', 0.95, 'momentum coefficient (after low_mom_iters)'),
             ('mom_low', 0.5, 'low momentum prior to low_mom_iters'),
             ('low_mom_iters', 100, 'number of iterations to run with low momentum'),
@@ -27,7 +27,7 @@ class OptimizerHyperparams(HyperparamStruct):
 
 class Optimizer(object):
 
-    def __init__(self, model, alpha=1e-3):
+    def __init__(self, model, alpha=1e-1):
         self.alpha = alpha
         self.model = model
         self.params = model.params
