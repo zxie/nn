@@ -1,10 +1,9 @@
 import os
 import argparse
 from os.path import join as pjoin
-#from brown_corpus import BrownCorpus
-#from char_corpus import CharCorpus, CONTEXT
 from char_stream import CharStream, CONTEXT
 from utt_char_stream import UttCharStream
+from bounce_vid import BounceVideo
 from model_utils import get_model_class_and_params
 from optimizer import OptimizerHyperparams
 from log_utils import get_logger
@@ -58,7 +57,9 @@ def main():
 
     # Load dataset
     #dataset = CharStream(CONTEXT, args.batch_size, step=1)
-    dataset = UttCharStream(args.batch_size)
+    #dataset = UttCharStream(args.batch_size)
+    # FIXME PARAM
+    dataset = BounceVideo(256, 128)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt=args.opt)

@@ -6,9 +6,9 @@ from ops import zeros, get_nl, softmax, mult,\
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
-from utt_char_stream import UttCharStream
 from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
+from costs import l2_cost, l1_cost
 
 logger = get_logger()
 
@@ -25,8 +25,8 @@ class BRNNHyperparams(ModelHyperparams):
             ('hidden_layers', 5, 'number of hidden layers'),
             ('recurrent_layer', 3, 'layer which should have recurrent connections'),
             ('bidirectional', False, 'bidirectional recurrent layers or not'),
-            ('input_size', 34, 'dimension of input example'),
-            ('output_size', 34, 'size of softmax output'),
+            ('input_size', 256, 'dimension of input example'),
+            ('output_size', 256, 'size of softmax output'),
             ('batch_size', 128, 'size of dataset batches'),
             ('max_act', 20.0, 'threshold to clip activation'),
             ('nl', 'relu', 'type of nonlinearity')
@@ -42,10 +42,10 @@ def weight_init(shape):
 class Layer:
 
     def __init__(self, inp_size, out_size, f_recur=False, b_recur=False,
-            softmax=False):
+            final=False):
         self.f_recur = f_recur
         self.b_recur = b_recur
-        self.softmax = softmax
+        self.final = False
 
         self.W = weight_init((out_size, inp_size))
         self.b = zeros((out_size, 1))
@@ -80,7 +80,7 @@ class BRNN(Net):
             layer_spec = dict()
             layer_spec['f_recur'] = False
             layer_spec['b_recur'] = False
-            layer_spec['softmax'] = False
+            layer_spec['final'] = False
             if k == hps.recurrent_layer - 1:
                 layer_spec['f_recur'] = True
                 if hps.bidirectional:
@@ -114,7 +114,7 @@ class BRNN(Net):
             self.layers.append(layer)
 
         layer = Layer(hps.hidden_size, hps.output_size, f_recur=False,
-                b_recur=False, softmax=True)
+                b_recur=False, final=True)
         self.params['W%d' % hps.hidden_layers] = layer.params['W']
         self.params['b%d' % hps.hidden_layers] = layer.params['b']
         self.layers.append(layer)
@@ -148,12 +148,14 @@ class BRNN(Net):
 
         data, labels = self.dset.get_batch()
         # FIXME Ugly
-        data = one_hot_lists(data, self.hps.output_size)
+        #data = one_hot_lists(data, self.hps.output_size)
+
         # Sometimes get less data
         self.T = data.shape[1]
         self.bsize = data.shape[2]
         # Combine time and batch indices
         data = data.reshape((data.shape[0], -1))
+        labels = labels.reshape((labels.shape[0], -1))
 
         if check_grad:
             cost, grads = self.cost_and_grad(data, labels)
@@ -172,21 +174,23 @@ class BRNN(Net):
         # Forward prop
 
         self.acts = [array(data)]
-        probs = self.forward_prop()
+        out = self.forward_prop()
 
         if labels is None:
-            return None, probs
+            return None, out
 
         # Compute cost and grads, replace this with other cost for
         # applications that don't use softmax classification
 
-        costs, deltas = self.cross_ent(probs, labels)
+        #costs, deltas = self.cross_ent(out, labels)
+        costs, deltas = l2_cost(out, labels)
+        #costs, deltas = l1_cost(out, labels)
 
         # NOTE Dividing by T to get better sense if objective # is decreasing,
         # remove for grad checking
         cost = costs.sum() / self.bsize / float(self.T)
         if not back:
-            return cost, probs
+            return cost, out
 
         # Backprop
 
@@ -212,12 +216,12 @@ class BRNN(Net):
                 out = f_acts
             elif layer.b_recur:
                 out = b_acts
-            elif not layer.softmax:
+            elif not layer.final:
                 out = self.nl(out)
 
             self.acts.append(out)
 
-        out = softmax(out)
+        #out = softmax(out)
         return out
 
     def backprop(self, deltas):
@@ -327,6 +331,9 @@ class BRNN(Net):
 
 
 if __name__ == '__main__':
+    from bounce_vid import BounceVideo
+    from utt_char_stream import UttCharStream
+
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -341,7 +348,8 @@ if __name__ == '__main__':
     model_hps.set_from_args(args)
     opt_hps.set_from_args(args)
 
-    dset = UttCharStream(args.batch_size)
+    #dset = UttCharStream(args.batch_size)
+    dset = BounceVideo(256, 128)
 
     # Construct network
     model = BRNN(dset, model_hps, opt_hps)

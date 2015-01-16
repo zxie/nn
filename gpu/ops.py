@@ -109,6 +109,9 @@ def sqrt(x):
     else:
         return gnp.sqrt(x)
 
+def absval(x):
+    return gnp.abs(x)
+
 def log(x):
     if USE_GPU:
         return x.log()

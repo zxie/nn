@@ -1,15 +1,15 @@
-from pylab import *
+import matplotlib.pyplot as plt
+from numpy import array, zeros, exp, dot
+from numpy import meshgrid, arange
+from numpy.random import rand, randn
+
+
+# size of bounding box: SIZE X SIZE.
+SIZE = 10
 
 
 def norm(x):
-    return sqrt((x ** 2).sum())
-
-
-def sigmoid(x):
-    return 1. / (1. + exp(-x))
-
-
-SIZE = 10
+    return ((x ** 2).sum()) ** 0.5
 
 
 def new_speeds(m1, m2, v1, v2):
@@ -17,16 +17,14 @@ def new_speeds(m1, m2, v1, v2):
     new_v1 = new_v2 + (v2 - v1)
     return new_v1, new_v2
 
-# size of bounding box: SIZE X SIZE.
-
 
 def bounce_n(T=128, n=2, r=None, m=None):
-    if r == None:
+    if r is None:
         r = array([1.2] * n)
-    if m == None:
+    if m is None:
         m = array([1] * n)
     # r is to be rather small.
-    X = zeros((T, n, 2), dtype='float')
+    X = zeros((T, n, 2))
     v = randn(n, 2)
     v = v / norm(v) * .5
     good_config = False
@@ -88,11 +86,11 @@ def ar(x, y, z):
 
 def matricize(X, res, r=None):
 
-    T, n = shape(X)[0:2]
-    if r == None:
+    T, n = X.shape[0:2]
+    if r is None:
         r = array([1.2] * n)
 
-    A = zeros((T, res, res), dtype='float')
+    A = zeros((T, res, res))
 
     [I, J] = meshgrid(ar(0, 1, 1. / res) * SIZE, ar(0, 1, 1. / res) * SIZE)
 
@@ -106,7 +104,7 @@ def matricize(X, res, r=None):
 
 
 def bounce_mat(res, n=2, T=128, r=None):
-    if r == None:
+    if r is None:
         r = array([1.2] * n)
     x = bounce_n(T, n, r)
     A = matricize(x, res, r)
@@ -114,7 +112,7 @@ def bounce_mat(res, n=2, T=128, r=None):
 
 
 def bounce_vec(res, n=2, T=128, r=None, m=None):
-    if r == None:
+    if r is None:
         r = array([1.2] * n)
     x = bounce_n(T, n, r, m)
     V = matricize(x, res, r)
@@ -122,23 +120,19 @@ def bounce_vec(res, n=2, T=128, r=None, m=None):
 
 
 def show_single_V(V):
-    res = int(sqrt(shape(V)[0]))
+    res = int(V.shape[0] ** 0.5)
     show(V.reshape(res, res))
 
 
 def show_V(V):
     T = V.shape[0]
-    res = int(sqrt(shape(V)[1]))
+    res = int(V.shape[1] ** 0.5)
     for t in range(T):
-        show(V[t].reshape(res, res))
-
-
-def unsigmoid(x):
-    return log(x) - log(1 - x)
+        plt.imshow(V[t].reshape(res, res))
+        plt.show()
 
 
 def show_A(A):
     T = len(A)
     for t in range(T):
-        print A[t].shape
         show(A[t])

@@ -10,6 +10,9 @@ SGD w/ classical momentum
 
 logger = get_logger()
 
+# PARAM
+MONITOR_EVERY = 1
+
 class MomentumOptimizer(Optimizer):
 
     '''
@@ -98,7 +101,7 @@ class MomentumOptimizer(Optimizer):
                 # NOTE vel is updates
                 self.vel[p] = alph * grads[p]
 
-        if self.monitor_norms:
+        if self.monitor_norms and len(self.costs) % MONITOR_EVERY == 0:
             self.update_norm = 0
             self.weight_norm = 0
             for p in self.updates:
