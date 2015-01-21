@@ -1,10 +1,14 @@
 import numpy as np
-import ops
-from ops import square, absval, array, as_np
+from ops import square, absval, array, as_np, sigmoid, get_nl_grad
 
 def l2_cost(X, Y):
     costs = square(X - Y)
     deltas = 2 * (X - Y)
+    return costs, deltas
+
+def unit_l2_cost(X, Y):
+    costs = square(X - Y)
+    deltas = 2 * (X - Y) * get_nl_grad('sigmoid', X)
     return costs, deltas
 
 def l1_cost(X, Y):

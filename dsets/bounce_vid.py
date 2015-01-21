@@ -8,7 +8,8 @@ from ops import array
 NUM_EXAMPLES_FACTOR = 100
 
 # FIXME PARAM
-T = 20
+T = 4
+N = 1
 
 class BounceVideo(Dataset):
 
@@ -25,7 +26,7 @@ class BounceVideo(Dataset):
         self.batch_labels = np.zeros((self.feat_dim, T, self.batch_size))
 
         for k in xrange(self.batch_size + 1):
-            v = bounce_vec(int(np.sqrt(self.feat_dim)), T=T).T
+            v = bounce_vec(int(np.sqrt(self.feat_dim)), n=N, T=T).T
             if k < self.batch_size:
                 self.batch[:, :, k] = v
             if k > 0:

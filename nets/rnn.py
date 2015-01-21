@@ -87,7 +87,7 @@ class RNN(Net):
 
         self.count_params()
 
-    def run(self, back=True, check_grad=False):
+    def run(self, back=True, grad_check=False):
         if USE_GPU:
             gnp.free_reuse_cache()
         super(RNN, self).run(back=back)
@@ -95,9 +95,9 @@ class RNN(Net):
         data, labels = self.dset.get_batch()
         data = one_hot_lists(data, self.hps.output_size)
 
-        if check_grad:
-            cost, grads = self.cost_and_grad(data, labels)
-            self.check_grad(data, labels, grads, params_to_check=['h0'], eps=0.1)
+        if grad_check:
+            cost, grads = self.cost_and_grad(data, labels, grad_check=True)
+            self.check_grad(data, labels, grads, params_to_check=['Whh'], eps=0.1)
         else:
             if back:
                 self.update_params(data, labels)
@@ -105,7 +105,7 @@ class RNN(Net):
                 cost, probs = self.cost_and_grad(data, labels, back=False)
                 return cost, probs
 
-    def cost_and_grad(self, data, labels, back=True, prev_h0=None):
+    def cost_and_grad(self, data, labels, back=True, prev_h0=None, grad_check=False):
         hps = self.hps
         T = data.shape[1]
         bsize = data.shape[2]
@@ -168,8 +168,9 @@ class RNN(Net):
                 if k == hps.recurrent_layer - 1:
                     us[k][t] += mult(Whh, hprev) + bhh
                     # Clip maximum activation
-                    mask = us[k][t] < hps.max_act
-                    us[k][t] = us[k][t] * mask + hps.max_act * (1 - mask)
+                    if not grad_check:
+                        mask = us[k][t] < hps.max_act
+                        us[k][t] = us[k][t] * mask + hps.max_act * (1 - mask)
                 elif k != 0:
                     us[k][t] += self.params['bh%d' % k]
 
@@ -258,4 +259,4 @@ if __name__ == '__main__':
 
     # Construct network
     model = RNN(dset, model_hps, opt_hps, opt='nag')
-    model.run(check_grad=True)
+    model.run(grad_check=True)

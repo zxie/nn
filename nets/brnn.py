@@ -1,14 +1,14 @@
 import numpy as np
 from optimizer import OptimizerHyperparams
 from ops import zeros, get_nl, softmax, mult,\
-        get_nl_grad, as_np, array, log, yl_init,\
-        USE_GPU, gnp, empty, tile, rand, copy_arr, vp_init
+        get_nl_grad, as_np, array,\
+        USE_GPU, gnp, copy_arr, vp_init, rand
 from models import Net
 from log_utils import get_logger
 from param_utils import ModelHyperparams
 from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
-from costs import l2_cost, l1_cost
+from costs import l2_cost, l1_cost, unit_l2_cost
 
 logger = get_logger()
 
@@ -36,7 +36,8 @@ class BRNNHyperparams(ModelHyperparams):
 
 # FIXME PARAM
 def weight_init(shape):
-    return vp_init(shape)
+    #return vp_init(shape)
+    return rand(shape, (-0.01, 0.01))
 
 
 class Layer:
@@ -74,6 +75,7 @@ class BRNN(Net):
 
         super(BRNN, self).__init__(dset, hps, train=train)
         self.nl = get_nl(hps.nl)
+        self.grad_check = False
 
         self.layer_specs = list()
         for k in xrange(hps.hidden_layers):
@@ -141,25 +143,27 @@ class BRNN(Net):
             grad_count += reduce(lambda x, y: x*y, self.grads[g].shape)
         logger.info('Allocated %d gradients' % grad_count)
 
-    def run(self, back=True, check_grad=False):
+    def run(self, back=True, grad_check=False):
+        # TODO Figure out way to remove this, 20% of time when last profiled
         if USE_GPU:
             gnp.free_reuse_cache()
         super(BRNN, self).run(back=back)
 
         data, labels = self.dset.get_batch()
         # FIXME Ugly
-        #data = one_hot_lists(data, self.hps.output_size)
+        data = one_hot_lists(data, self.hps.output_size)
 
         # Sometimes get less data
         self.T = data.shape[1]
         self.bsize = data.shape[2]
         # Combine time and batch indices
         data = data.reshape((data.shape[0], -1))
-        labels = labels.reshape((labels.shape[0], -1))
+        #labels = labels.reshape((labels.shape[0], -1))
 
-        if check_grad:
-            cost, grads = self.cost_and_grad(data, labels)
-            to_check = 'W%db' % 2
+        self.grad_check = grad_check
+        if grad_check:
+            cost, grads = self.cost_and_grad(data, labels, grad_check=True)
+            to_check = 'W%df' % 2
             self.check_grad(data, labels, grads, params_to_check=[to_check], eps=0.1)
         else:
             if back:
@@ -168,7 +172,7 @@ class BRNN(Net):
                 cost, probs = self.cost_and_grad(data, labels, back=False)
                 return cost, probs
 
-    def cost_and_grad(self, data, labels, back=True, prev_h0=None):
+    def cost_and_grad(self, data, labels, back=True, prev_h0=None, grad_check=False):
         self.prev_h0 = prev_h0
 
         # Forward prop
@@ -182,13 +186,18 @@ class BRNN(Net):
         # Compute cost and grads, replace this with other cost for
         # applications that don't use softmax classification
 
-        #costs, deltas = self.cross_ent(out, labels)
-        costs, deltas = l2_cost(out, labels)
+        costs, deltas = self.cross_ent(out, labels)
+        #costs, deltas = l2_cost(out, labels)
+        #costs, deltas = unit_l2_cost(out, labels)
+        #costs[:, 0:self.T/2*self.bsize] = 0
+        #deltas[:, 0:self.T/2*self.bsize] = 0
         #costs, deltas = l1_cost(out, labels)
 
-        # NOTE Dividing by T to get better sense if objective # is decreasing,
+        cost = costs.sum() / self.bsize
+        # NOTE Dividing by T to get better sense if objective # is decreasing;
         # remove for grad checking
-        cost = costs.sum() / self.bsize / float(self.T)
+        if not self.grad_check:
+            cost /= float(self.T)
         if not back:
             return cost, out
 
@@ -221,7 +230,8 @@ class BRNN(Net):
 
             self.acts.append(out)
 
-        #out = softmax(out)
+        out = softmax(out)
+        #out = get_nl('sigmoid')(out)
         return out
 
     def backprop(self, deltas):
@@ -271,7 +281,7 @@ class BRNN(Net):
                 s = start + self.bsize if reverse else start - self.bsize
                 r_act += mult(W, r_acts[:, s:s+self.bsize])
 
-            if self.hps.max_act > 0:
+            if self.hps.max_act > 0 and not self.grad_check:
                 mask = r_act < self.hps.max_act
                 r_act = r_act * mask + self.hps.max_act * (1 - mask)
 
@@ -309,6 +319,9 @@ class BRNN(Net):
             next_dt *= get_nl_grad(self.hps.nl, curr_act)
             curr_dt = next_dt
 
+            # NOTE gnumpy aliasing can be very tricky
+            deltas[:, start-self.bsize:start] = next_dt
+
         if reverse:
             layer.dWb[:] = mult(deltas[:, :-self.bsize], acts[:, self.bsize:].T) / self.bsize
         else:
@@ -317,8 +330,8 @@ class BRNN(Net):
         return deltas
 
     def cross_ent(self, probs, labels):
-        probs_neg_log = as_np(-1 * log(probs))
-        deltas = as_np(probs)
+        deltas = as_np(copy_arr(probs))
+        probs_neg_log = -1 * np.log(deltas)
         costs = np.zeros((self.T, self.bsize))
 
         for k in xrange(self.bsize):
@@ -348,9 +361,9 @@ if __name__ == '__main__':
     model_hps.set_from_args(args)
     opt_hps.set_from_args(args)
 
-    #dset = UttCharStream(args.batch_size)
-    dset = BounceVideo(256, 128)
+    dset = UttCharStream(args.batch_size, subset='test')
+    #dset = BounceVideo(256, 128)
 
     # Construct network
     model = BRNN(dset, model_hps, opt_hps)
-    model.run(check_grad=True)
+    model.run(grad_check=True)

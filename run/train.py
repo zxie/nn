@@ -17,8 +17,8 @@ gnumpy_setup()
 #gnp.track_memory_usage = True
 
 # PARAM
-SAVE_PARAMS_EVERY = 5000
-#MODEL_TYPE = 'brnn'
+SAVE_PARAMS_EVERY = 1000
+#MODEL_TYPE = 'rnn'
 MODEL_TYPE = 'brnn'
 #MODEL_TYPE = 'dnn'
 
@@ -57,9 +57,9 @@ def main():
 
     # Load dataset
     #dataset = CharStream(CONTEXT, args.batch_size, step=1)
-    #dataset = UttCharStream(args.batch_size)
+    dataset = UttCharStream(args.batch_size)
     # FIXME PARAM
-    dataset = BounceVideo(256, 128)
+    #dataset = BounceVideo(256, 128)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt=args.opt)

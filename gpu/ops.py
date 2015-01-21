@@ -8,6 +8,7 @@ if not USE_GPU:
     gnp.random.seed(19)
 else:
     import gnumpy as gnp
+import numpy as np
 
 '''
 Ideally hide away all low-level libraries so easier to swap one library
@@ -44,10 +45,8 @@ def empty(shape):
     return gnp.empty(shape)
 
 def rand(shape, rg=[0, 1]):
-    if USE_GPU:
-        return gnp.rand(shape) * (rg[1] - rg[0]) + rg[0]
-    else:
-        return gnp.random.rand(*shape) * (rg[1] - rg[0]) + rg[0]
+    # NOTE Always use numpy for consistency between GPU and CPU ops
+    return array(np.random.rand(*shape) * (rg[1] - rg[0]) + rg[0])
 
 def zeros(shape):
     return gnp.zeros(shape)

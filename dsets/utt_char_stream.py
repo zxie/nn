@@ -8,7 +8,6 @@ from dset_paths import CHAR_CORPUS_VOCAB_FILE
 logger = get_logger()
 random.seed(19)
 
-# # NOTE Pad at least this much to give the RNN flexibility
 MAX_UTT_LENGTH = 300
 
 class UttCharStream(CharStream):

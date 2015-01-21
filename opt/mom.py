@@ -68,7 +68,7 @@ class MomentumOptimizer(Optimizer):
             self.grad_norm += l2norm(grads[p]) ** 2
         self.grad_norm = self.grad_norm ** 0.5
         if self.grad_norm > self.max_grad:
-            logger.info('Clipping gradient by %f / %f' % (self.max_grad, self.grad_norm))
+            #logger.info('Clipping gradient by %f / %f' % (self.max_grad, self.grad_norm))
             return self.alpha * (self.max_grad / self.grad_norm)
         return self.alpha
 

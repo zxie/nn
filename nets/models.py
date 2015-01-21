@@ -40,9 +40,9 @@ class Net(object):
                 for j in range(param.shape[1]):
                     # NOTE Does 2-way numerical gradient
                     param[i, j] += eps
-                    cost_p, _ = self.cost_and_grad(data, labels, back=False)
+                    cost_p, _ = self.cost_and_grad(data, labels, back=False, grad_check=True)
                     param[i, j] -= 2*eps
-                    cost_m, _ = self.cost_and_grad(data, labels, back=False)
+                    cost_m, _ = self.cost_and_grad(data, labels, back=False, grad_check=True)
                     param[i, j] += eps
                     num_grad[i, j] = (cost_p - cost_m) / (2*eps)
                     print i, j, 'ng', num_grad[i, j], 'g', grad[i, j], '/',\
