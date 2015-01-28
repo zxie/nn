@@ -77,6 +77,9 @@ class UttCharStream(CharStream):
             line_text = self.lines[self.line_ind].replace('\\', '')
             line_data, line_labels = self.get_data_from_line(line_text)
 
+            self.batch.append(line_data)
+            self.batch_labels.append(line_labels)
+
             self.line_ind += 1
 
             if self.line_ind == len(self.lines):
@@ -90,9 +93,6 @@ class UttCharStream(CharStream):
                     break
                 else:
                     break
-
-            self.batch.append(line_data)
-            self.batch_labels.append(line_labels)
 
         return self.batch, self.batch_labels
 

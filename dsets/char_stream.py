@@ -82,10 +82,17 @@ class CharStream(Dataset):
             #print line_text
             line_data, line_labels = self.get_data_from_line(line_text, batch_left)
 
+            if self.batch is None:
+                self.batch = line_data
+                self.batch_labels = line_labels
+            else:
+                self.batch = np.hstack((self.batch, line_data))
+                self.batch_labels = np.concatenate((self.batch_labels, line_labels))
+
             # If we've come to end of the line, don't break
             if self.batch is not None and self.batch.shape[1] >= self.batch_size\
                     and self.char_ind < len(line_text):
-                assert batch.shape[1] == self.batch_size
+                assert self.batch.shape[1] == self.batch_size
                 break
 
             self.char_ind = 0
@@ -103,16 +110,10 @@ class CharStream(Dataset):
                 else:
                     break
 
-            if self.batch is None:
-                self.batch = line_data
-                self.batch_labels = line_labels
-            else:
-                self.batch = np.hstack((self.batch, line_data))
-                self.batch_labels = np.concatenate((self.batch_labels, line_labels))
-
         return self.batch, self.batch_labels
 
     def restart(self, shuffle=True):
+        logger.info('Restarting')
         self.file_ind = 0
         self.line_ind = 0
         self.char_ind = 0
