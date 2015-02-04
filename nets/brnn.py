@@ -8,7 +8,7 @@ from log_utils import get_logger
 from param_utils import ModelHyperparams
 from opt_utils import create_optimizer
 from dset_utils import one_hot_lists
-from costs import l2_cost, l1_cost, unit_l2_cost
+from costs import l2_cost, l1_cost, unit_l2_cost, cross_ent_cost
 
 logger = get_logger()
 
@@ -34,10 +34,16 @@ class BRNNHyperparams(ModelHyperparams):
         super(BRNNHyperparams, self).__init__(entries)
 
 
-# FIXME PARAM
 def weight_init(shape):
-    #return vp_init(shape)
     return rand(shape, (-0.01, 0.01))
+    #return vp_init(shape)
+    #return eye_init(shape)
+
+
+def eye_init(shape):
+    assert len(shape) == 2 and shape[0] == shape[1]
+    # FIXME PARAM
+    return rand(shape, (-0.01, 0.01)) + np.eye(shape[0])
 
 
 class Layer:
@@ -56,13 +62,13 @@ class Layer:
         self.params = {'W': self.W, 'b': self.b}
         self.grads = {'W': self.dW, 'b': self.db}
         if f_recur:
-            self.Wf = weight_init((out_size, out_size))
+            self.Wf = eye_init((out_size, out_size))
             self.dWf = zeros(self.Wf.shape)
             self.params['Wf'] = self.Wf
             self.grads['Wf'] = self.dWf
             self.f_acts = None
         if b_recur:
-            self.Wb = weight_init((out_size, out_size))
+            self.Wb = eye_init((out_size, out_size))
             self.dWb = zeros(self.Wb.shape)
             self.params['Wb'] = self.Wb
             self.grads['Wb'] = self.dWb
@@ -151,14 +157,14 @@ class BRNN(Net):
 
         data, labels = self.dset.get_batch()
         # FIXME Ugly
-        data = one_hot_lists(data, self.hps.output_size)
+        #data = one_hot_lists(data, self.hps.output_size)
 
         # Sometimes get less data
         self.T = data.shape[1]
         self.bsize = data.shape[2]
         # Combine time and batch indices
         data = data.reshape((data.shape[0], -1))
-        #labels = labels.reshape((labels.shape[0], -1))
+        labels = labels.reshape((labels.shape[0], -1))
 
         self.grad_check = grad_check
         if grad_check:
@@ -186,8 +192,9 @@ class BRNN(Net):
         # Compute cost and grads, replace this with other cost for
         # applications that don't use softmax classification
 
-        costs, deltas = self.cross_ent(out, labels)
+        #costs, deltas = cross_ent_cost(out, labels)
         #costs, deltas = l2_cost(out, labels)
+        costs, deltas = l2_cost(out, labels)
         #costs, deltas = unit_l2_cost(out, labels)
         #costs[:, 0:self.T/2*self.bsize] = 0
         #deltas[:, 0:self.T/2*self.bsize] = 0
@@ -230,7 +237,7 @@ class BRNN(Net):
 
             self.acts.append(out)
 
-        out = softmax(out)
+        #out = softmax(out)
         #out = get_nl('sigmoid')(out)
         return out
 
@@ -329,19 +336,6 @@ class BRNN(Net):
 
         return deltas
 
-    def cross_ent(self, probs, labels):
-        deltas = as_np(copy_arr(probs))
-        probs_neg_log = -1 * np.log(deltas)
-        costs = np.zeros((self.T, self.bsize))
-
-        for k in xrange(self.bsize):
-            for t in xrange(len(labels[k])):
-                # NOTE Very slow if probs_neg_log not in CPU memory
-                costs[t, k] = probs_neg_log[labels[k][t], t*self.bsize+k]
-                deltas[labels[k][t], t*self.bsize+k] -= 1
-
-        return costs, array(deltas)
-
 
 if __name__ == '__main__':
     from bounce_vid import BounceVideo
@@ -361,8 +355,8 @@ if __name__ == '__main__':
     model_hps.set_from_args(args)
     opt_hps.set_from_args(args)
 
-    dset = UttCharStream(args.batch_size, subset='test')
-    #dset = BounceVideo(256, 128)
+    #dset = UttCharStream(args.batch_size, subset='test')
+    dset = BounceVideo(256, 128)
 
     # Construct network
     model = BRNN(dset, model_hps, opt_hps)

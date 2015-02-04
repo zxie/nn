@@ -11,11 +11,13 @@ For large datasets, can't save the data arrays,
 need to allocate on the fly
 '''
 
+random.seed(1)
+
 logger = get_logger()
 
 class CharStream(Dataset):
 
-    def __init__(self, feat_dim, batch_size, step=1, subset='train'):
+    def __init__(self, feat_dim, batch_size, subset='train', context=CONTEXT):
         super(CharStream, self).__init__(feat_dim, batch_size)
 
         # NOTE Need to specify paths in subclasses
@@ -24,7 +26,7 @@ class CharStream(Dataset):
                 'test': '/bak/swbd_data/test/files.txt'
         }
         self.subset = subset
-        self.step = step
+        self.context = context
 
         # Load vocab
         with open(CHAR_CORPUS_VOCAB_FILE, 'rb') as fin:
@@ -54,21 +56,16 @@ class CharStream(Dataset):
     # and text has been lower-cased and stripped
     def get_data_from_line(self, line, batch_left):
         line = ''.join([c for c in line if c in self.char_inds])
-        # + 1 since add </s>
-        N = min(len(line) - self.char_ind + 1, batch_left * self.step)
-        line = ['<null>'] * (CONTEXT - 1) + ['<s>'] + list(line) + ['</s>']
-        data = np.empty((CONTEXT, N/self.step), dtype=np.int32)
-        labels = np.empty(N/self.step, dtype=np.int32)
-        for k in xrange(0, N-(N % self.step), self.step):
-            #print k, self.step
-            j = k / self.step
-            if k > 0 and self.step == 1:
-                data[:-1, k] = data[1:, k-1]
-                data[-1, k] = labels[k-1]
-            else:
-                data[:, j] = [self.char_inds[c] for c in line[k:k+CONTEXT]]
-            labels[j] = self.char_inds[line[k+CONTEXT]]
-            self.char_ind += 1
+        # FIXME Rounding issues / skips short lines
+        N = min(len(line) / self.context, batch_left)
+        # FIXME Move this line up one
+        line = ['<s>'] + list(line) + ['</s>']
+        data = np.empty((self.context, N), dtype=np.int32)
+        labels = np.empty(data.shape, dtype=np.int32)
+        for k in xrange(0, N):
+            data[:, k] = [self.char_inds[c] for c in line[k:k+self.context]]
+            labels[:, k] = [self.char_inds[c] for c in line[k+1:k+self.context+1]]
+            self.char_ind += self.context
 
         return data, labels
 
@@ -87,7 +84,7 @@ class CharStream(Dataset):
                 self.batch_labels = line_labels
             else:
                 self.batch = np.hstack((self.batch, line_data))
-                self.batch_labels = np.concatenate((self.batch_labels, line_labels))
+                self.batch_labels = np.hstack((self.batch_labels, line_labels))
 
             # If we've come to end of the line, don't break
             if self.batch is not None and self.batch.shape[1] >= self.batch_size\
@@ -131,3 +128,5 @@ if __name__ == '__main__':
         batch, labels = dset.get_batch()
         print batch.shape
         print labels.shape
+        print batch
+        print labels
