@@ -61,6 +61,16 @@ class MomentumOptimizer(Optimizer):
             mom = self.mom
         return mom
 
+    def compute_norms(self):
+        if self.monitor_norms and len(self.costs) % MONITOR_EVERY == 0:
+            self.update_norm = 0
+            self.weight_norm = 0
+            for p in self.updates:
+                self.update_norm += l2norm(self.updates[p]) ** 2
+                self.weight_norm += l2norm(self.params[p]) ** 2
+            self.update_norm = self.update_norm ** 0.5
+            self.weight_norm = self.weight_norm ** 0.5
+
     def clip_grads(self, grads):
         # Gradient clipping
         self.grad_norm = 0.0
@@ -101,14 +111,7 @@ class MomentumOptimizer(Optimizer):
                 # NOTE vel is updates
                 self.vel[p] = alph * grads[p]
 
-        if self.monitor_norms and len(self.costs) % MONITOR_EVERY == 0:
-            self.update_norm = 0
-            self.weight_norm = 0
-            for p in self.updates:
-                self.update_norm += l2norm(self.updates[p]) ** 2
-                self.weight_norm += l2norm(self.params[p]) ** 2
-            self.update_norm = self.update_norm ** 0.5
-            self.weight_norm = self.weight_norm ** 0.5
+        self.compute_norms()
 
     def apply_update(self):
         for p in self.params:

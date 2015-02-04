@@ -24,7 +24,7 @@ SAMPLE_LENGTH = 100
 
 
 def generate_next_frame(v, model):
-    data = v.reshape(-1, 1)
+    data = v.reshape((-1, 1))
     model.T = 1
     model.bsize = 1
 
@@ -34,10 +34,11 @@ def generate_next_frame(v, model):
     return out
 
 
-# FIXME Should instead have a layer to do this...
+# NOTE Have output layer do this
 def normalize_frame(v):
     v = (v - np.min(v)) / np.max(v)
     return v
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -64,10 +65,10 @@ if __name__ == '__main__':
     edge_size = int(np.sqrt(FEAT_DIM))
     start_frames = bounce_vec(edge_size, n=1, T=2)
     frames[:, 0:2] = start_frames.T
-    generate_next_frame(frames[:, -2], model)
+    next_frame = generate_next_frame(frames[:, 0], model)
 
     for k in range(2, SAMPLE_LENGTH):
-        next_frame = generate_next_frame(frames[:, -1], model)
+        next_frame = generate_next_frame(frames[:, k-1], model)
         frames[:, k] = next_frame
 
     # Write the video
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     writer.open(args.out_file, fourcc, FPS, OUT_SIZE)
     for k in xrange(frames.shape[1]):
         frame = frames[:, k].reshape((edge_size, edge_size))
-        frame = normalize_frame(frame)
+        #frame = normalize_frame(frame)
         frame = np.array(frame * 256, dtype=np.uint8)
         frame = np.dstack((frame, frame, frame))
         frame = cv2.resize(frame, OUT_SIZE, interpolation=cv2.cv.CV_INTER_NN)

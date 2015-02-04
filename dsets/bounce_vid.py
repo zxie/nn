@@ -34,6 +34,8 @@ class BounceVideo(Dataset):
 
         self.batch_ind += 1
         return array(self.batch), array(self.batch_labels)
+        # NOTE Can sanity check by training identity
+        #return array(self.batch), array(self.batch)
 
     def restart(self, shuffle=True):
         self.batch_ind = 0

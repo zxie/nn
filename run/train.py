@@ -57,9 +57,9 @@ def main():
 
     # Load dataset
     #dataset = CharStream(CONTEXT, args.batch_size, step=1)
-    dataset = UttCharStream(args.batch_size)
+    #dataset = UttCharStream(args.batch_size)
     # FIXME PARAM
-    #dataset = BounceVideo(256, 128)
+    dataset = BounceVideo(256, 128)
 
     # Construct network
     model = model_class(dataset, model_hps, opt_hps, opt=args.opt)

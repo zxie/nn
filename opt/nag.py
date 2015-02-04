@@ -37,4 +37,6 @@ class NesterovOptimizer(MomentumOptimizer):
                 # NOTE vel is updates
                 self.vel[p] = alph * grads[p]
 
+        self.compute_norms()
+
         return cost
