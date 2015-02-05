@@ -37,7 +37,6 @@ class CharStream(Dataset):
         # Keep track of where we are
         self.file_ind = 0
         self.line_ind = 0
-        self.char_ind = 0
 
         assert subset in self.text_path_files
         with open(self.text_path_files[subset], 'r') as f:
@@ -54,45 +53,28 @@ class CharStream(Dataset):
 
     # NOTE Assumes that OOV characters have been filtered
     # and text has been lower-cased and stripped
-    def get_data_from_line(self, line, batch_left):
-        line = ''.join([c for c in line if c in self.char_inds])
-        # FIXME Rounding issues / skips short lines
-        N = min(len(line) / self.context, batch_left)
-        # FIXME Move this line up one
-        line = ['<s>'] + list(line) + ['</s>']
-        data = np.empty((self.context, N), dtype=np.int32)
-        labels = np.empty(data.shape, dtype=np.int32)
-        for k in xrange(0, N):
-            data[:, k] = [self.char_inds[c] for c in line[k:k+self.context]]
-            labels[:, k] = [self.char_inds[c] for c in line[k+1:k+self.context+1]]
-            self.char_ind += self.context
-
-        return data, labels
-
     def get_batch(self):
-        self.batch = None
-        self.batch_labels = None
-        while self.batch is None or self.batch.shape[1] < self.batch_size:
-            batch_left = self.batch_size if self.batch is None else self.batch_size - self.batch.shape[1]
+        self.batch = np.empty((self.context, self.batch_size), dtype=np.int32)
+        self.batch_labels = np.empty((self.context, self.batch_size), dtype=np.int32)
+
+        batch_ind = 0
+        context_ind = 0
+        while batch_ind < self.batch_size:
             # FIXME Next time filter these away beforehand
-            line_text = self.lines[self.line_ind].replace('\\', '')
-            #print line_text
-            line_data, line_labels = self.get_data_from_line(line_text, batch_left)
+            line = self.lines[self.line_ind].replace('\\', '')
+            line = [c for c in line if c in self.char_inds]
+            line = ['<s>'] + line + ['</s>']
 
-            if self.batch is None:
-                self.batch = line_data
-                self.batch_labels = line_labels
-            else:
-                self.batch = np.hstack((self.batch, line_data))
-                self.batch_labels = np.hstack((self.batch_labels, line_labels))
+            for k in xrange(len(line) - 1):
+                self.batch[context_ind, batch_ind] = self.char_inds[line[k]]
+                self.batch_labels[context_ind, batch_ind] = self.char_inds[line[k+1]]
+                context_ind += 1
+                if context_ind == self.context:
+                    context_ind = 0
+                    batch_ind += 1
+                if batch_ind == self.batch_size:
+                    break
 
-            # If we've come to end of the line, don't break
-            if self.batch is not None and self.batch.shape[1] >= self.batch_size\
-                    and self.char_ind < len(line_text):
-                assert self.batch.shape[1] == self.batch_size
-                break
-
-            self.char_ind = 0
             self.line_ind += 1
 
             if self.line_ind == len(self.lines):
@@ -107,13 +89,12 @@ class CharStream(Dataset):
                 else:
                     break
 
-        return self.batch, self.batch_labels
+        return self.batch[:, 0:batch_ind], self.batch_labels[:, 0:batch_ind]
 
     def restart(self, shuffle=True):
         logger.info('Restarting')
         self.file_ind = 0
         self.line_ind = 0
-        self.char_ind = 0
         with open(self.files[self.file_ind], 'r') as fin:
             self.lines = fin.read().splitlines()
         if shuffle:
