@@ -5,28 +5,28 @@ from ops import array
 
 # Could generate infinite number of batches but want to start annealing
 # after reasonably large pass
-NUM_EXAMPLES_FACTOR = 100
+NUM_EXAMPLES_FACTOR = 25
 
 # FIXME PARAM
-T = 4
 N = 1
 
 class BounceVideo(Dataset):
 
-    def __init__(self, feat_dim, batch_size):
+    def __init__(self, feat_dim, batch_size, T=20):
         assert int(np.sqrt(feat_dim)) ** 2 == feat_dim
         super(BounceVideo, self).__init__(feat_dim, batch_size)
         self.batch_ind = 0
+        self.T = T
 
     def data_left(self):
         return self.batch_ind < self.feat_dim * NUM_EXAMPLES_FACTOR
 
     def get_batch(self):
-        self.batch = np.zeros((self.feat_dim, T, self.batch_size))
-        self.batch_labels = np.zeros((self.feat_dim, T, self.batch_size))
+        self.batch = np.zeros((self.feat_dim, self.T, self.batch_size))
+        self.batch_labels = np.zeros((self.feat_dim, self.T, self.batch_size))
 
         for k in xrange(self.batch_size + 1):
-            v = bounce_vec(int(np.sqrt(self.feat_dim)), n=N, T=T).T
+            v = bounce_vec(int(np.sqrt(self.feat_dim)), n=N, T=self.T).T
             if k < self.batch_size:
                 self.batch[:, :, k] = v
             if k > 0:

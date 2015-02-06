@@ -6,6 +6,7 @@ from numpy.random import rand, randn
 
 # size of bounding box: SIZE X SIZE.
 SIZE = 10
+RADIUS_RATIO = 2.0
 
 
 def norm(x):
@@ -20,7 +21,7 @@ def new_speeds(m1, m2, v1, v2):
 
 def bounce_n(T=128, n=2, r=None, m=None):
     if r is None:
-        r = array([1.2] * n)
+        r = array([RADIUS_RATIO] * n)
     if m is None:
         m = array([1] * n)
     # r is to be rather small.
@@ -88,7 +89,7 @@ def matricize(X, res, r=None):
 
     T, n = X.shape[0:2]
     if r is None:
-        r = array([1.2] * n)
+        r = array([RADIUS_RATIO] * n)
 
     A = zeros((T, res, res))
 
@@ -105,7 +106,7 @@ def matricize(X, res, r=None):
 
 def bounce_mat(res, n=2, T=128, r=None):
     if r is None:
-        r = array([1.2] * n)
+        r = array([RADIUS_RATIO] * n)
     x = bounce_n(T, n, r)
     A = matricize(x, res, r)
     return A
@@ -113,7 +114,7 @@ def bounce_mat(res, n=2, T=128, r=None):
 
 def bounce_vec(res, n=2, T=128, r=None, m=None):
     if r is None:
-        r = array([1.2] * n)
+        r = array([RADIUS_RATIO] * n)
     x = bounce_n(T, n, r, m)
     V = matricize(x, res, r)
     return V.reshape(T, res ** 2)

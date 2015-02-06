@@ -40,6 +40,21 @@ def normalize_frame(v):
     return v
 
 
+# Assumes frame values in [0, 1] range
+def write_video(out_file, frames, in_shape, out_shape):
+    fourcc = cv2.cv.CV_FOURCC(*'MJPG')
+    writer = cv2.VideoWriter()
+    writer.open(out_file, fourcc, FPS, out_shape)
+    for k in xrange(frames.shape[1]):
+        frame = frames[:, k].reshape(in_shape)
+        #frame = normalize_frame(frame)
+        frame = np.array(frame * 256, dtype=np.uint8)
+        frame = np.dstack((frame, frame, frame))
+        frame = cv2.resize(frame, out_shape, interpolation=cv2.cv.CV_INTER_NN)
+        writer.write(frame)
+    writer.release()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg_file', help='config file with run data for model to use')
@@ -73,14 +88,5 @@ if __name__ == '__main__':
 
     # Write the video
 
-    fourcc = cv2.cv.CV_FOURCC(*'MJPG')
-    writer = cv2.VideoWriter()
-    writer.open(args.out_file, fourcc, FPS, OUT_SIZE)
-    for k in xrange(frames.shape[1]):
-        frame = frames[:, k].reshape((edge_size, edge_size))
-        #frame = normalize_frame(frame)
-        frame = np.array(frame * 256, dtype=np.uint8)
-        frame = np.dstack((frame, frame, frame))
-        frame = cv2.resize(frame, OUT_SIZE, interpolation=cv2.cv.CV_INTER_NN)
-        writer.write(frame)
-    writer.release()
+    write_video(args.out_file, frames,
+            (edge_size, edge_size), OUT_SIZE)
