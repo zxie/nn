@@ -6,7 +6,7 @@ from numpy.random import rand, randn
 
 # size of bounding box: SIZE X SIZE.
 SIZE = 10
-RADIUS_RATIO = 2.0
+RADIUS_RATIO = 1.2
 
 
 def norm(x):
