@@ -5,7 +5,7 @@ from ops import array
 
 # Could generate infinite number of batches but want to start annealing
 # after reasonably large pass
-NUM_EXAMPLES_FACTOR = 25
+NUM_EXAMPLES_FACTOR = 10
 
 # FIXME PARAM
 N = 2
