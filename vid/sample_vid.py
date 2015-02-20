@@ -10,7 +10,7 @@ from run_utils import CfgStruct
 from run_utils import load_config
 from train import MODEL_TYPE
 from bounce import bounce_vec
-np.random.seed(5)
+np.random.seed(19)
 
 '''
 Sample video from RNN generator
@@ -36,7 +36,8 @@ def generate_next_frame(v, model):
 
 # NOTE Have output layer do this
 def normalize_frame(v):
-    v = (v - np.min(v)) / np.max(v)
+    v = (v - np.min(v))
+    v = v / np.max(v)
     return v
 
 

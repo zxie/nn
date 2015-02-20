@@ -112,12 +112,16 @@ def bounce_mat(res, n=2, T=128, r=None):
     return A
 
 
-def bounce_vec(res, n=2, T=128, r=None, m=None):
+def bounce_vec(res, n=2, T=128, r=None, m=None, ret_coords=False):
     if r is None:
         r = array([RADIUS_RATIO] * n)
     x = bounce_n(T, n, r, m)
     V = matricize(x, res, r)
-    return V.reshape(T, res ** 2)
+    V = V.reshape(T, res ** 2)
+    if ret_coords:
+        return V, x
+    else:
+        return V
 
 
 def show_single_V(V):
