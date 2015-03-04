@@ -23,15 +23,24 @@ class BounceVidCoords(Dataset):
 
     def get_batch(self):
         self.batch = np.zeros((self.feat_dim, self.T, self.batch_size))
-        self.batch_labels = np.zeros((N * 2, self.T, self.batch_size))
+        #self.batch_labels = np.zeros((N * 2, self.T, self.batch_size))
+        self.batch_labels = np.zeros((self.feat_dim, self.T, self.batch_size))
+
+        # FIXME
+        side_len = int(np.sqrt(self.feat_dim))
 
         for k in xrange(self.batch_size):
-            v, c = bounce_vec(int(np.sqrt(self.feat_dim)), n=N, T=self.T, ret_coords=True)
+            v, c = bounce_vec(side_len, n=N, T=self.T, ret_coords=True)
             v = v.T
-            c = c.transpose((1, 2, 0))
-            c = c.reshape((N*2, -1))
+            #c = c.transpose((1, 2, 0))
+            #c = c.reshape((N*2, -1))
+            c2 = np.zeros(v.shape)
+            for t in xrange(c2.shape[1]):
+                c2[side_len * c[t, 0, 0] + c[t, 0, 1], t] = 1
+                c2[side_len * c[t, 1, 0] + c[t, 1, 1], t] = 1
+
             self.batch[:, 0:self.T, k] = v
-            self.batch_labels[:, 0:self.T, k] = c
+            self.batch_labels[:, 0:self.T, k] = c2
 
         self.batch_ind += 1
         return array(self.batch), array(self.batch_labels)
