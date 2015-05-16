@@ -1,0 +1,7 @@
+Project page: [http://deeplearning.stanford.edu/lexfree](http://deeplearning.stanford.edu/lexfree)
+
+Neural network language model training code.
+
+If using GPU, requires [cudamat](https://github.com/cudamat/cudamat).
+
+Main scripts in `run` directory.
